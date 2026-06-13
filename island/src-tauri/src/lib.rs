@@ -1,3 +1,4 @@
+mod profile_watcher;
 mod watcher;
 
 use tauri::{AppHandle, Emitter, Manager};
@@ -18,7 +19,8 @@ fn set_island_state(app: AppHandle, state: String) {
 /// message to Claude Code (see `watcher`).
 #[tauri::command]
 fn island_ready(app: AppHandle) {
-    watcher::start(app);
+    watcher::start(app.clone());
+    profile_watcher::start(app);
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]

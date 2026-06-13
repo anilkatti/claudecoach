@@ -5,6 +5,9 @@ const { invoke } = window.__TAURI__.core;
 const island = document.getElementById("island");
 const typedEl = document.getElementById("typed");
 const cursor = document.getElementById("cursor");
+const coachBadge = document.getElementById("coach-badge");
+
+const TREND_ARROW = { up: "▲", down: "▼", flat: "·" };
 
 // ---- build the Claude burst logo (12 rotated spokes) ----
 (function buildLogo() {
@@ -60,6 +63,19 @@ function applyState(state) {
 async function init() {
   await listen("island://state", (event) => {
     applyState(event.payload?.state);
+  });
+
+  await listen("island://profile", (event) => {
+    const p = event.payload;
+    if (!p || typeof p.overall !== "number" || !p.band) {
+      coachBadge.hidden = true;
+      return;
+    }
+    const trend = p.trend in TREND_ARROW ? p.trend : "flat";
+    coachBadge.innerHTML =
+      `${p.band} · ${p.overall.toFixed(1)} ` +
+      `<span class="arrow-${trend}">${TREND_ARROW[trend]}</span>`;
+    coachBadge.hidden = false;
   });
   // Listener is ready — let the backend drive the demo expand/collapse.
   await invoke("island_ready");

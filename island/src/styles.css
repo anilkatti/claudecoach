@@ -55,6 +55,24 @@ html, body {
   border-radius: 0 0 30px 30px;
 }
 
+/* Compact coach-profile badge, shown in the notch header. */
+#coach-badge {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 2px 8px;
+  border-radius: 9px;
+  background: rgba(255, 255, 255, 0.12);
+  font-size: 12px;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.92);
+  white-space: nowrap;
+}
+#coach-badge[hidden] { display: none; }
+#coach-badge .arrow-up { color: #34c759; }
+#coach-badge .arrow-down { color: #ff453a; }
+#coach-badge .arrow-flat { color: rgba(255, 255, 255, 0.5); }
+
 .notch-inner {
   height: 100%;
   padding: 14px 22px 16px;
