@@ -1,0 +1,40 @@
+{
+  "version": 1,
+  "habits": [
+    {
+      "key": "vague-prompts",
+      "label": "Your prompts are often very short",
+      "polarity": "holding-you-back",
+      "detect": {"signal": "avg_prompt_length_words", "op": "<", "value": 5},
+      "coaching": "Short prompts often show up alongside more back-and-forth. A sentence of context usually gets a better first answer."
+    },
+    {
+      "key": "blind-acceptance",
+      "label": "You rarely push back on the AI",
+      "polarity": "holding-you-back",
+      "detect": {"signal": "critiques", "op": "<", "value": 1},
+      "coaching": "Sessions with no pushback often drift. Questioning output when something looks off tends to land better results."
+    },
+    {
+      "key": "plans-before-big-work",
+      "label": "You plan before big changes",
+      "polarity": "strength",
+      "detect": {"signal": "plan_mode_used", "op": "==", "value": true},
+      "coaching": "Setting up before diving in tends to show up alongside finishing more of what you start."
+    },
+    {
+      "key": "verifies-work",
+      "label": "You check your work before calling it done",
+      "polarity": "strength",
+      "detect": {"signal": "tdd_discipline_ratio", "op": ">=", "value": 0.5},
+      "coaching": "Verifying as you go tends to show up alongside fewer surprises later."
+    },
+    {
+      "key": "works-in-parallel",
+      "label": "You run work in parallel",
+      "polarity": "strength",
+      "detect": {"signal": "task_tool_used", "op": "==", "value": true},
+      "coaching": "Delegating sub-tasks in parallel often shows up alongside getting more done per session."
+    }
+  ]
+}
