@@ -652,6 +652,41 @@ class SkillInvocationTests(unittest.TestCase):
         self.assertEqual(sig["skills_invoked"]["unique"], 2)
         self.assertEqual(sig["skills_invoked"]["by_name"]["brainstorming"], 2)
 
+    def test_raw_user_command_text_keeps_command_tag(self):
+        # The plain raw-text filter drops <command-name>; the command-text helper
+        # must keep it so slash detection can see it.
+        tagged = "<command-name>/code-review</command-name> please"
+        self.assertIsNone(events.extract_raw_user_text(tagged))
+        self.assertIn("<command-name>", events.raw_user_command_text(tagged))
+
+    def test_slash_command_detected_through_extract_session(self):
+        # Integration: a real slash-command turn (starts with <command-name>, which
+        # extract_raw_user_text filters out) must STILL produce a skills_invoked
+        # signal via extract_session — the production path, not the bypassed unit.
+        with tempfile.TemporaryDirectory() as td:
+            p = os.path.join(td, "s.jsonl")
+            entries = [
+                # A normal turn so the session isn't empty (signals only compute
+                # when real user messages exist — mirrors the chunker early-return).
+                {"type": "user", "timestamp": "2026-06-01T10:00:00Z",
+                 "message": {"role": "user", "content": "please refactor the parser"}},
+                {"type": "user", "timestamp": "2026-06-01T10:00:02Z",
+                 "message": {"role": "user", "content":
+                             "<command-name>/code-review</command-name>"}},
+                {"type": "assistant", "timestamp": "2026-06-01T10:00:05Z",
+                 "message": {"role": "assistant", "id": "m1", "model": "claude-fable-5",
+                             "content": [{"type": "tool_use", "name": "Skill",
+                                          "input": {"skill": "brainstorming"}, "id": "t1"}]}},
+            ]
+            with open(p, "w", encoding="utf-8") as f:
+                for e in entries:
+                    f.write(json.dumps(e) + "\n")
+            rec = events.extract_session(p)
+            inv = rec["session_signals"]["skills_invoked"]
+            self.assertEqual(inv["by_name"]["code-review"], 1)   # slash path
+            self.assertEqual(inv["by_name"]["brainstorming"], 1)  # Skill tool path
+            self.assertEqual(inv["unique"], 2)
+
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)

@@ -507,6 +507,20 @@ def _skill_template_content(text):
     return any(p.search(text) for p in SKILL_TEMPLATE_PATTERNS)
 
 
+def raw_user_command_text(content):
+    """Concatenate user text WITHOUT the local-command filtering that
+    extract_raw_user_text applies. Slash-command turns start with a
+    <command-name> tag, which that filter deliberately drops — so skill-invocation
+    detection must read the unfiltered text instead, or it never sees the tag."""
+    if isinstance(content, str):
+        return content
+    if isinstance(content, list):
+        parts = [str(b.get("text") or "") for b in content
+                 if isinstance(b, dict) and b.get("type") == "text"]
+        return " ".join(parts)
+    return ""
+
+
 def extract_raw_user_text(content):
     """Port of TranscriptChunker#extract_raw_user_text (without SecretScrubber —
     raw text feeds word counts; scrubbing happens where Ruby persists)."""
@@ -1002,6 +1016,9 @@ def extract_session(path):
             if isinstance(content, list):
                 for block in content:
                     extractor.extract_from_tool_result(block, timestamp)
+            # Slash commands are read from the UNFILTERED text: extract_raw_user_text
+            # drops <command-name>-prefixed turns, which is exactly where the tag lives.
+            extractor.extract_slash_command(raw_user_command_text(content), timestamp)
             raw_text = extract_raw_user_text(content)
             if raw_text:
                 raw_user_messages.append({
@@ -1010,7 +1027,6 @@ def extract_session(path):
                     "word_count": len(raw_text.split()),
                 })
                 extractor.extract_user_directive(raw_text, timestamp)
-                extractor.extract_slash_command(raw_text, timestamp)
         elif etype == "assistant":
             counted = False
             if isinstance(content, list):

@@ -14,9 +14,9 @@ import sys
 SOURCES = ["builtin", "marketplace", "anthropic-docs"]
 
 
-def fetch_builtin():
-    # Built-ins are known locally; return the curated seed entries unchanged.
-    return None  # caller keeps existing 'builtin' entries
+# Built-in entries are curated locally and kept as-is across rebuilds (the
+# `build` function preserves any source it doesn't fetch), so there is no
+# builtin fetcher — only the networked sources below are refreshed.
 
 
 def fetch_marketplace():
