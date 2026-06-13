@@ -172,14 +172,28 @@ fn scan_new_lines(path: &Path, offsets: &Offsets) -> Option<String> {
 /// no stale nudge, no early collapse).
 fn fire(app: &AppHandle, generation: &Arc<AtomicU64>, message: String) {
     let mine = generation.fetch_add(1, Ordering::SeqCst) + 1;
+    let preview: String = message.chars().take(60).collect();
+    eprintln!("[coach] #{mine} detected typed message ({} chars): {preview:?}", message.len());
     let app = app.clone();
     let generation = generation.clone();
     std::thread::spawn(move || {
         // Fire the review now; this blocks this thread for a second or two.
-        let nudge = reviewer::review(&message).unwrap_or_else(|| reviewer::fallback(mine));
+        let nudge = match reviewer::review(&message) {
+            Some(n) => {
+                eprintln!("[coach] #{mine} review ok -> {n:?}");
+                n
+            }
+            None => {
+                let f = reviewer::fallback(mine);
+                eprintln!("[coach] #{mine} review FAILED (claude/python on PATH?) -> fallback {f:?}");
+                f
+            }
+        };
         if generation.load(Ordering::SeqCst) != mine {
+            eprintln!("[coach] #{mine} superseded by a newer message; dropping");
             return; // a newer message superseded us mid-review
         }
+        eprintln!("[coach] #{mine} emitting expanded + nudge");
         // Response is back — now open the notch and let the expand animation
         // play before the nudge types in.
         let _ = app.emit(
