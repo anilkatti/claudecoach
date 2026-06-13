@@ -231,13 +231,13 @@ mod reviewer {
     use std::path::{Path, PathBuf};
     use std::process::{Command, Stdio};
 
-    /// Generic, non-fabricated lines shown when the review can't run (e.g.
-    /// `claude`/`python3` not on PATH). Indexed by the message's generation so
-    /// consecutive failures don't repeat the same line.
+    /// Coach Knight lines shown when the review can't run (e.g. `claude`/
+    /// `python3` not on PATH). They don't fake a review — they own the miss, in
+    /// character. Indexed by generation so consecutive failures don't repeat.
     const FALLBACKS: [&str; 3] = [
-        "On it — keep the momentum going.",
-        "Noted. Keep your asks clear and you'll move fast.",
-        "Got it — steer, check, ship.",
+        "Couldn't get a read on that one. Run it back.",
+        "Tape's down, kid — next rep, make it count.",
+        "No notes. Not 'cause it was good; 'cause I missed it.",
     ];
 
     pub fn fallback(generation: u64) -> String {
