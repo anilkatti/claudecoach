@@ -21,39 +21,52 @@ use std::time::Duration;
 use notify::{EventKind, RecursiveMode, Watcher};
 use tauri::{AppHandle, Emitter};
 
-/// How long the pill stays expanded after the last typed message before it
-/// collapses again. Debounced: rapid messages keep resetting the timer.
-const COLLAPSE_AFTER: Duration = Duration::from_secs(4);
+/// How long the notch stays expanded after the last typed message before it
+/// collapses. Debounced: rapid messages keep resetting the timer. Long enough
+/// to finish the ~4s typing animation and leave the nudge readable.
+const COLLAPSE_AFTER: Duration = Duration::from_secs(9);
 
 #[derive(Clone, serde::Serialize)]
 struct IslandState {
     state: String,
 }
 
+/// Payload for `island://review` — the one-line coaching nudge the expanded
+/// notch types out for the message that was just sent.
+#[derive(Clone, serde::Serialize)]
+struct Nudge {
+    nudge: String,
+}
+
 type Offsets = Arc<Mutex<HashMap<PathBuf, u64>>>;
 
-/// True only for a message a human literally typed into Claude Code.
+/// The text of a message a human literally typed into Claude Code, or `None`.
 ///
-/// Pure and total: any malformed or non-matching line returns `false`, so the
-/// caller never has to reason about parse errors.
-pub fn is_typed_user_message(line: &str) -> bool {
-    let v: serde_json::Value = match serde_json::from_str(line) {
-        Ok(v) => v,
-        Err(_) => return false,
-    };
+/// Pure and total: any malformed or non-matching line returns `None`, so the
+/// caller never has to reason about parse errors. The discriminator is the same
+/// one verified against real transcripts (see module docs): `type:"user"` +
+/// `promptSource:"typed"`, not a sidechain, with a non-empty string content.
+pub fn typed_user_message(line: &str) -> Option<String> {
+    let v: serde_json::Value = serde_json::from_str(line).ok()?;
     if v.get("type").and_then(|t| t.as_str()) != Some("user") {
-        return false;
+        return None;
     }
     if v.get("promptSource").and_then(|s| s.as_str()) != Some("typed") {
-        return false;
+        return None;
     }
     if v.get("isSidechain").and_then(|b| b.as_bool()) == Some(true) {
-        return false;
+        return None;
     }
-    matches!(
-        v.get("message").and_then(|m| m.get("content")),
-        Some(serde_json::Value::String(s)) if !s.trim().is_empty()
-    )
+    match v.get("message").and_then(|m| m.get("content")) {
+        Some(serde_json::Value::String(s)) if !s.trim().is_empty() => Some(s.clone()),
+        _ => None,
+    }
+}
+
+/// True iff `line` is a typed human message. Thin wrapper over
+/// [`typed_user_message`].
+pub fn is_typed_user_message(line: &str) -> bool {
+    typed_user_message(line).is_some()
 }
 
 /// Start watching `~/.claude/projects` for typed user messages. Returns
@@ -105,71 +118,95 @@ pub fn start(app: AppHandle) {
                 if path.extension().and_then(|e| e.to_str()) != Some("jsonl") {
                     continue;
                 }
-                if scan_new_lines(&path, &offsets) {
-                    fire(&app, &generation);
+                if let Some(message) = scan_new_lines(&path, &offsets) {
+                    fire(&app, &generation, message);
                 }
             }
         }
     });
 }
 
-/// Read newly-appended complete lines from `path` and report whether any is a
-/// typed user message. Tracks a per-file byte offset so each line is parsed at
-/// most once; only advances past the last complete (newline-terminated) line so
-/// a mid-write event never consumes a partial record.
-fn scan_new_lines(path: &Path, offsets: &Offsets) -> bool {
+/// Read newly-appended complete lines from `path` and return the text of the
+/// most recent typed user message among them, if any. Tracks a per-file byte
+/// offset so each line is parsed at most once; only advances past the last
+/// complete (newline-terminated) line so a mid-write event never consumes a
+/// partial record.
+fn scan_new_lines(path: &Path, offsets: &Offsets) -> Option<String> {
     let mut map = offsets.lock().unwrap();
     let start = *map.get(path).unwrap_or(&0);
 
-    let mut file = match File::open(path) {
-        Ok(f) => f,
-        Err(_) => return false,
-    };
-    let len = match file.metadata() {
-        Ok(m) => m.len(),
-        Err(_) => return false,
-    };
+    let mut file = File::open(path).ok()?;
+    let len = file.metadata().ok()?.len();
     if len < start {
         // File was truncated/rotated — reset and wait for the next append.
         map.insert(path.to_path_buf(), len);
-        return false;
+        return None;
     }
     if len == start {
-        return false;
+        return None;
     }
-    if file.seek(SeekFrom::Start(start)).is_err() {
-        return false;
-    }
+    file.seek(SeekFrom::Start(start)).ok()?;
 
     let mut buf = String::new();
     // On a multibyte char split mid-write, read_to_string errors; leave the
     // offset untouched and retry on the next event when the bytes are complete.
     if file.take(len - start).read_to_string(&mut buf).is_err() {
-        return false;
+        return None;
     }
     let consumed = match buf.rfind('\n') {
         Some(i) => i + 1,
-        None => return false, // no complete line yet
+        None => return None, // no complete line yet
     };
-    let hit = buf[..consumed].lines().any(is_typed_user_message);
     map.insert(path.to_path_buf(), start + consumed as u64);
-    hit
+    // Most recent typed message in this batch (usually exactly one).
+    buf[..consumed].lines().rev().find_map(typed_user_message)
 }
 
-/// Emit `expanded` now and schedule a debounced `collapsed`. Each call bumps a
-/// generation counter; only the most recent call's timer is allowed to collapse,
-/// so a burst of messages keeps the pill open until 4s after the last one.
-fn fire(app: &AppHandle, generation: &Arc<AtomicU64>) {
-    let _ = app.emit(
-        "island://state",
-        IslandState {
-            state: "expanded".into(),
-        },
-    );
+/// Review a freshly-typed `message`, then reveal the notch with the nudge.
+///
+/// The review (a `claude -p` round-trip) is kicked off *immediately* on a
+/// background thread, but the notch stays collapsed until the response comes
+/// back — then it expands, types the nudge, and collapses after
+/// [`COLLAPSE_AFTER`]. A generation counter makes the latest message win: if
+/// another message arrives mid-review, this call stops emitting (no stale pop,
+/// no stale nudge, no early collapse).
+fn fire(app: &AppHandle, generation: &Arc<AtomicU64>, message: String) {
     let mine = generation.fetch_add(1, Ordering::SeqCst) + 1;
+    let preview: String = message.chars().take(60).collect();
+    eprintln!("[coach] #{mine} detected typed message ({} chars): {preview:?}", message.len());
     let app = app.clone();
     let generation = generation.clone();
     std::thread::spawn(move || {
+        // Fire the review now; this blocks this thread for a second or two.
+        let nudge = match reviewer::review(&message) {
+            Some(n) => {
+                eprintln!("[coach] #{mine} review ok -> {n:?}");
+                n
+            }
+            None => {
+                let f = reviewer::fallback(mine);
+                eprintln!("[coach] #{mine} review FAILED (claude/python on PATH?) -> fallback {f:?}");
+                f
+            }
+        };
+        if generation.load(Ordering::SeqCst) != mine {
+            eprintln!("[coach] #{mine} superseded by a newer message; dropping");
+            return; // a newer message superseded us mid-review
+        }
+        eprintln!("[coach] #{mine} emitting expanded + nudge");
+        // Response is back — now open the notch and let the expand animation
+        // play before the nudge types in.
+        let _ = app.emit(
+            "island://state",
+            IslandState {
+                state: "expanded".into(),
+            },
+        );
+        std::thread::sleep(Duration::from_millis(450));
+        if generation.load(Ordering::SeqCst) != mine {
+            return;
+        }
+        let _ = app.emit("island://review", Nudge { nudge });
         std::thread::sleep(COLLAPSE_AFTER);
         if generation.load(Ordering::SeqCst) == mine {
             let _ = app.emit(
@@ -200,14 +237,101 @@ fn jsonl_files(base: &Path) -> Vec<PathBuf> {
     out
 }
 
+/// Per-message coaching review. Shells out to `coach/scripts/review_message.py`
+/// (which routes the model call through `coach_llm` — the one model call site),
+/// reads back its `{ "nudge": ... }` JSON, and returns the nudge text.
+mod reviewer {
+    use std::io::Write;
+    use std::path::{Path, PathBuf};
+    use std::process::{Command, Stdio};
+
+    /// Coach Knight lines shown when the review can't run (e.g. `claude`/
+    /// `python3` not on PATH). They don't fake a review — they own the miss, in
+    /// character. Indexed by generation so consecutive failures don't repeat.
+    const FALLBACKS: [&str; 3] = [
+        "Couldn't get a read on that one. Run it back.",
+        "Tape's down, kid — next rep, make it count.",
+        "No notes. Not 'cause it was good; 'cause I missed it.",
+    ];
+
+    pub fn fallback(generation: u64) -> String {
+        FALLBACKS[(generation as usize) % FALLBACKS.len()].to_string()
+    }
+
+    /// Review `message`, returning the nudge text, or `None` if anything fails.
+    pub fn review(message: &str) -> Option<String> {
+        let script = locate_script()?;
+        let mut child = Command::new("python3")
+            .arg(&script)
+            .stdin(Stdio::piped())
+            .stdout(Stdio::piped())
+            .stderr(Stdio::null())
+            .spawn()
+            .ok()?;
+
+        // Write the message to stdin, then drop the handle to signal EOF so the
+        // script's `sys.stdin.read()` returns.
+        {
+            let mut stdin = child.stdin.take()?;
+            stdin.write_all(message.as_bytes()).ok()?;
+        }
+
+        let out = child.wait_with_output().ok()?;
+        if !out.status.success() {
+            return None;
+        }
+        let v: serde_json::Value = serde_json::from_slice(&out.stdout).ok()?;
+        let nudge = v.get("nudge").and_then(|n| n.as_str())?.trim();
+        if nudge.is_empty() {
+            None
+        } else {
+            Some(nudge.to_string())
+        }
+    }
+
+    /// Find `coach/scripts/review_message.py`: honor `CLAUDECOACH_REPO`, else
+    /// walk up from the current directory looking for the repo layout.
+    fn locate_script() -> Option<PathBuf> {
+        const REL: &str = "coach/scripts/review_message.py";
+        if let Ok(repo) = std::env::var("CLAUDECOACH_REPO") {
+            let p = Path::new(&repo).join(REL);
+            if p.is_file() {
+                return Some(p);
+            }
+        }
+        let mut dir = std::env::current_dir().ok()?;
+        loop {
+            let candidate = dir.join(REL);
+            if candidate.is_file() {
+                return Some(candidate);
+            }
+            if !dir.pop() {
+                return None;
+            }
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
-    use super::is_typed_user_message;
+    use super::{is_typed_user_message, typed_user_message};
 
     #[test]
     fn accepts_a_typed_human_prompt() {
         let line = r#"{"type":"user","userType":"external","promptSource":"typed","isSidechain":false,"message":{"role":"user","content":"hello claude"}}"#;
         assert!(is_typed_user_message(line));
+    }
+
+    #[test]
+    fn extracts_the_message_text() {
+        let line = r#"{"type":"user","promptSource":"typed","message":{"role":"user","content":"fix the flaky test"}}"#;
+        assert_eq!(typed_user_message(line).as_deref(), Some("fix the flaky test"));
+    }
+
+    #[test]
+    fn extraction_returns_none_for_tool_result() {
+        let line = r#"{"type":"user","promptSource":null,"message":{"content":[{"type":"tool_result","content":"ok"}]}}"#;
+        assert!(typed_user_message(line).is_none());
     }
 
     #[test]
