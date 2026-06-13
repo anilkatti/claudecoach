@@ -1,0 +1,21 @@
+{
+  "built_at": "2026-06-13",
+  "skills": [
+    {"name": "brainstorming", "source": "builtin",
+     "one_liner": "Turn an idea into a clear plan before building.",
+     "when_to_use": "Starting any new feature or open-ended task.",
+     "tags": ["planning", "steering"]},
+    {"name": "code-review", "source": "builtin",
+     "one_liner": "Review your changes for bugs and cleanups.",
+     "when_to_use": "Before finishing or merging work.",
+     "tags": ["quality"]},
+    {"name": "verify", "source": "builtin",
+     "one_liner": "Run the app and confirm a change actually works.",
+     "when_to_use": "Before claiming something is done.",
+     "tags": ["quality", "outcomes"]},
+    {"name": "writing-plans", "source": "builtin",
+     "one_liner": "Break a task into bite-sized, testable steps.",
+     "when_to_use": "When a task has more than a couple of moving parts.",
+     "tags": ["planning"]}
+  ]
+}
