@@ -269,6 +269,11 @@ class EventExtractor:
                                command=_truncate(condense.scrub(command), MAX_BASH_LENGTH))
         elif SUBAGENT_TOOL_NAME_PATTERN.fullmatch(tool_name):
             self.extract_subagent_dispatch(block, inp, timestamp)
+        elif tool_name == "Skill":
+            name = inp.get("skill") or inp.get("name")
+            if not _blank(name):
+                self.add_event("skill_invoke", timestamp,
+                               name=str(name).lstrip("/"), source="skill_tool")
 
     def extract_subagent_dispatch(self, block, inp, timestamp):
         tool_use_id = str(block.get("id") or "")
@@ -370,6 +375,15 @@ class EventExtractor:
                                message=_truncate(condense.scrub(error_msg), MAX_TEXT_LENGTH))
 
         self._pending_git_commit = False
+
+    _SLASH_RE = re.compile(r"<command-name>\s*/?([\w:-]+)", re.I)
+
+    def extract_slash_command(self, text, timestamp):
+        if not text:
+            return
+        for m in self._SLASH_RE.finditer(text):
+            self.add_event("skill_invoke", timestamp,
+                           name=m.group(1), source="slash_command")
 
     def extract_user_directive(self, text, timestamp):
         if _blank(text):
@@ -479,6 +493,10 @@ class EventExtractor:
                            failed=int(m.group(2)) if m.group(2) else 0)
 
 
+# Alias for test convenience (spec references events.Extractor()).
+Extractor = EventExtractor
+
+
 # --- raw user text filters (transcript_chunker.rb extract_raw_user_text) ---
 
 def _local_command_content(text):
@@ -487,6 +505,20 @@ def _local_command_content(text):
 
 def _skill_template_content(text):
     return any(p.search(text) for p in SKILL_TEMPLATE_PATTERNS)
+
+
+def raw_user_command_text(content):
+    """Concatenate user text WITHOUT the local-command filtering that
+    extract_raw_user_text applies. Slash-command turns start with a
+    <command-name> tag, which that filter deliberately drops — so skill-invocation
+    detection must read the unfiltered text instead, or it never sees the tag."""
+    if isinstance(content, str):
+        return content
+    if isinstance(content, list):
+        parts = [str(b.get("text") or "") for b in content
+                 if isinstance(b, dict) and b.get("type") == "text"]
+        return " ".join(parts)
+    return ""
 
 
 def extract_raw_user_text(content):
@@ -667,6 +699,17 @@ def _extract_event_signals(events):
     signals.update(_extract_tdd_discipline(events))
     signals.update(_extract_recovery_speed(events))
     signals.update(_extract_error_retry_ratio(events))
+    skill_evs = [e for e in events if e.get("type") == "skill_invoke"]
+    if skill_evs:
+        by_name = {}
+        for e in skill_evs:
+            n = e.get("name") or "unknown"
+            by_name[n] = by_name.get(n, 0) + 1
+        signals["skills_invoked"] = {
+            "total": len(skill_evs),
+            "unique": len(by_name),
+            "by_name": by_name,
+        }
     return signals
 
 
@@ -973,6 +1016,9 @@ def extract_session(path):
             if isinstance(content, list):
                 for block in content:
                     extractor.extract_from_tool_result(block, timestamp)
+            # Slash commands are read from the UNFILTERED text: extract_raw_user_text
+            # drops <command-name>-prefixed turns, which is exactly where the tag lives.
+            extractor.extract_slash_command(raw_user_command_text(content), timestamp)
             raw_text = extract_raw_user_text(content)
             if raw_text:
                 raw_user_messages.append({

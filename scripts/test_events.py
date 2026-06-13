@@ -620,5 +620,73 @@ class SessionRecordAdditiveKeysTest(unittest.TestCase):
             self.assertNotIn("token_usage", rec)
 
 
+class SkillInvocationTests(unittest.TestCase):
+    def test_skill_tool_use_becomes_event(self):
+        ext = events.Extractor()
+        ext.extract_from_tool_use(
+            {"type": "tool_use", "name": "Skill",
+             "input": {"skill": "brainstorming"}, "id": "t1"},
+            "2026-06-01T10:00:00Z")
+        evs = [e for e in ext.events if e["type"] == "skill_invoke"]
+        self.assertEqual(len(evs), 1)
+        self.assertEqual(evs[0]["name"], "brainstorming")
+        self.assertEqual(evs[0]["source"], "skill_tool")
+
+    def test_slash_command_in_user_text_becomes_event(self):
+        ext = events.Extractor()
+        ext.extract_slash_command(
+            "<command-name>/code-review</command-name>", "2026-06-01T10:01:00Z")
+        evs = [e for e in ext.events if e["type"] == "skill_invoke"]
+        self.assertEqual(len(evs), 1)
+        self.assertEqual(evs[0]["name"], "code-review")
+        self.assertEqual(evs[0]["source"], "slash_command")
+
+    def test_skills_invoked_signal_dedups_and_counts(self):
+        evs = [
+            {"type": "skill_invoke", "name": "brainstorming", "source": "skill_tool"},
+            {"type": "skill_invoke", "name": "brainstorming", "source": "skill_tool"},
+            {"type": "skill_invoke", "name": "code-review", "source": "slash_command"},
+        ]
+        sig = events._extract_event_signals(evs)
+        self.assertEqual(sig["skills_invoked"]["total"], 3)
+        self.assertEqual(sig["skills_invoked"]["unique"], 2)
+        self.assertEqual(sig["skills_invoked"]["by_name"]["brainstorming"], 2)
+
+    def test_raw_user_command_text_keeps_command_tag(self):
+        # The plain raw-text filter drops <command-name>; the command-text helper
+        # must keep it so slash detection can see it.
+        tagged = "<command-name>/code-review</command-name> please"
+        self.assertIsNone(events.extract_raw_user_text(tagged))
+        self.assertIn("<command-name>", events.raw_user_command_text(tagged))
+
+    def test_slash_command_detected_through_extract_session(self):
+        # Integration: a real slash-command turn (starts with <command-name>, which
+        # extract_raw_user_text filters out) must STILL produce a skills_invoked
+        # signal via extract_session — the production path, not the bypassed unit.
+        with tempfile.TemporaryDirectory() as td:
+            p = os.path.join(td, "s.jsonl")
+            entries = [
+                # A normal turn so the session isn't empty (signals only compute
+                # when real user messages exist — mirrors the chunker early-return).
+                {"type": "user", "timestamp": "2026-06-01T10:00:00Z",
+                 "message": {"role": "user", "content": "please refactor the parser"}},
+                {"type": "user", "timestamp": "2026-06-01T10:00:02Z",
+                 "message": {"role": "user", "content":
+                             "<command-name>/code-review</command-name>"}},
+                {"type": "assistant", "timestamp": "2026-06-01T10:00:05Z",
+                 "message": {"role": "assistant", "id": "m1", "model": "claude-fable-5",
+                             "content": [{"type": "tool_use", "name": "Skill",
+                                          "input": {"skill": "brainstorming"}, "id": "t1"}]}},
+            ]
+            with open(p, "w", encoding="utf-8") as f:
+                for e in entries:
+                    f.write(json.dumps(e) + "\n")
+            rec = events.extract_session(p)
+            inv = rec["session_signals"]["skills_invoked"]
+            self.assertEqual(inv["by_name"]["code-review"], 1)   # slash path
+            self.assertEqual(inv["by_name"]["brainstorming"], 1)  # Skill tool path
+            self.assertEqual(inv["unique"], 2)
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)
