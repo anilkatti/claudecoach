@@ -1,0 +1,29 @@
+{
+  "axes": {
+    "leverage": 7.1,
+    "outcomes": 7.4,
+    "planning": 5.9,
+    "quality": 7.9,
+    "steering": 6.8
+  },
+  "band": "Solid",
+  "disclaimer": "Haiku-scored & nondeterministic; a snapshot, not a verdict.",
+  "n_episodes": 38,
+  "n_sessions": 142,
+  "overall": 7.02,
+  "strongest_axis": {
+    "key": "quality",
+    "name": "Quality bar",
+    "score": 7.9
+  },
+  "trend": {
+    "note": null,
+    "overall_delta": 0.26
+  },
+  "updated_at": "2026-06-13T09:00:11.482137",
+  "weakest_axis": {
+    "key": "planning",
+    "name": "Thinking ahead",
+    "score": 5.9
+  }
+}
