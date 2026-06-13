@@ -1,3 +1,5 @@
+mod watcher;
+
 use tauri::{AppHandle, Emitter, Manager};
 
 #[derive(Clone, serde::Serialize)]
@@ -11,16 +13,12 @@ fn set_island_state(app: AppHandle, state: String) {
     let _ = app.emit("island://state", IslandState { state });
 }
 
-/// The frontend calls this once it has registered its listener.
-/// We then drive a one-shot demo so the auto-expand is visible immediately.
+/// The frontend calls this once it has registered its listener. We then start
+/// the transcript watcher, which expands the island whenever the user types a
+/// message to Claude Code (see `watcher`).
 #[tauri::command]
 fn island_ready(app: AppHandle) {
-    std::thread::spawn(move || {
-        std::thread::sleep(std::time::Duration::from_millis(2000));
-        let _ = app.emit("island://state", IslandState { state: "expanded".into() });
-        std::thread::sleep(std::time::Duration::from_millis(4000));
-        let _ = app.emit("island://state", IslandState { state: "collapsed".into() });
-    });
+    watcher::start(app);
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
