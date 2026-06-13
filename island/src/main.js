@@ -21,14 +21,6 @@ const TREND_ARROW = { up: "▲", down: "▼", flat: "·" };
   }
 })();
 
-const messages = [
-  "You've been heads-down for 90 minutes. Stand up, roll your shoulders, look at something far away.",
-  "That bug you're stuck on? Step away for 5. Your brain solves it in the shower, not the stack trace.",
-  "Nice commit. Momentum is real — ride it into the next one while you're warm.",
-  "Hydrate. You've shipped three PRs and zero glasses of water today.",
-  "Big meeting in 10. Close the extra tabs, breathe, you've got the context.",
-];
-let msgIndex = 0;
 let typingTimer = null;
 
 function type(text) {
@@ -50,19 +42,22 @@ function type(text) {
 function applyState(state) {
   if (state !== "collapsed" && state !== "expanded") return;
   island.dataset.state = state;
-  if (state === "expanded") {
-    // wait for expand + header animation before typing
-    setTimeout(() => type(messages[msgIndex]), 480);
-    msgIndex = (msgIndex + 1) % messages.length;
-  } else {
-    clearTimeout(typingTimer);
-    typedEl.textContent = "";
-  }
+  // On expand the notch opens with a blinking cursor ("thinking") and waits for
+  // the backend review (island://review) to type the coaching nudge.
+  clearTimeout(typingTimer);
+  typedEl.textContent = "";
 }
 
 async function init() {
   await listen("island://state", (event) => {
     applyState(event.payload?.state);
+  });
+
+  // Per-message coaching nudge: typed into the expanded notch once the backend
+  // review of the just-sent message returns (see src-tauri/src/watcher.rs).
+  await listen("island://review", (event) => {
+    const nudge = event.payload?.nudge;
+    if (typeof nudge === "string" && nudge) type(nudge);
   });
 
   await listen("island://profile", (event) => {
