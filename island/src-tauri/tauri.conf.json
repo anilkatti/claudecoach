@@ -13,12 +13,11 @@
       {
         "label": "main",
         "title": "Island",
-        "width": 360,
+        "width": 600,
         "height": 220,
         "resizable": false,
         "decorations": false,
         "transparent": true,
-        "alwaysOnTop": true,
         "shadow": false,
         "skipTaskbar": true,
         "visible": false

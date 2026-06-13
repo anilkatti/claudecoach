@@ -7,14 +7,26 @@
     <title>Island</title>
   </head>
   <body>
-    <div id="island" data-state="collapsed">
-      <div class="collapsed-content">
-        <span class="dot"></span>
-        <span class="label">Island</span>
-      </div>
-      <div class="expanded-content">
-        <div class="title">Placeholder</div>
-        <div class="subtitle">Auto-expanded by the app</div>
+    <div class="notch-wrap">
+      <div class="notch" id="island" data-state="collapsed">
+        <div class="notch-inner">
+          <div class="header">
+            <span class="logo">
+              <!-- Anthropic / Claude radial burst (spokes cloned in main.js) -->
+              <svg viewBox="0 0 100 100" aria-hidden="true">
+                <g fill="#d97757">
+                  <g id="spokes">
+                    <rect x="46.5" y="6" width="7" height="40" rx="3.5" />
+                  </g>
+                </g>
+              </svg>
+            </span>
+            <span class="brand">Coach</span>
+            <span class="status-dot"></span>
+          </div>
+          <div class="terminal"><span class="prompt-sign">&rsaquo;</span
+            ><span id="typed"></span><span class="cursor" id="cursor"></span></div>
+        </div>
       </div>
     </div>
     <script type="module" src="/main.js"></script>
