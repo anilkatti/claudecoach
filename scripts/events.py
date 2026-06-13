@@ -269,6 +269,11 @@ class EventExtractor:
                                command=_truncate(condense.scrub(command), MAX_BASH_LENGTH))
         elif SUBAGENT_TOOL_NAME_PATTERN.fullmatch(tool_name):
             self.extract_subagent_dispatch(block, inp, timestamp)
+        elif tool_name == "Skill":
+            name = inp.get("skill") or inp.get("name")
+            if not _blank(name):
+                self.add_event("skill_invoke", timestamp,
+                               name=str(name).lstrip("/"), source="skill_tool")
 
     def extract_subagent_dispatch(self, block, inp, timestamp):
         tool_use_id = str(block.get("id") or "")
@@ -370,6 +375,15 @@ class EventExtractor:
                                message=_truncate(condense.scrub(error_msg), MAX_TEXT_LENGTH))
 
         self._pending_git_commit = False
+
+    _SLASH_RE = re.compile(r"<command-name>\s*/?([\w:-]+)", re.I)
+
+    def extract_slash_command(self, text, timestamp):
+        if not text:
+            return
+        for m in self._SLASH_RE.finditer(text):
+            self.add_event("skill_invoke", timestamp,
+                           name=m.group(1), source="slash_command")
 
     def extract_user_directive(self, text, timestamp):
         if _blank(text):
@@ -477,6 +491,10 @@ class EventExtractor:
             self.add_event("test_run", timestamp, framework="pytest",
                            passed=int(m.group(1)),
                            failed=int(m.group(2)) if m.group(2) else 0)
+
+
+# Alias for test convenience (spec references events.Extractor()).
+Extractor = EventExtractor
 
 
 # --- raw user text filters (transcript_chunker.rb extract_raw_user_text) ---
@@ -667,6 +685,17 @@ def _extract_event_signals(events):
     signals.update(_extract_tdd_discipline(events))
     signals.update(_extract_recovery_speed(events))
     signals.update(_extract_error_retry_ratio(events))
+    skill_evs = [e for e in events if e.get("type") == "skill_invoke"]
+    if skill_evs:
+        by_name = {}
+        for e in skill_evs:
+            n = e.get("name") or "unknown"
+            by_name[n] = by_name.get(n, 0) + 1
+        signals["skills_invoked"] = {
+            "total": len(skill_evs),
+            "unique": len(by_name),
+            "by_name": by_name,
+        }
     return signals
 
 
@@ -981,6 +1010,7 @@ def extract_session(path):
                     "word_count": len(raw_text.split()),
                 })
                 extractor.extract_user_directive(raw_text, timestamp)
+                extractor.extract_slash_command(raw_text, timestamp)
         elif etype == "assistant":
             counted = False
             if isinstance(content, list):

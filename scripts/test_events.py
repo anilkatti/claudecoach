@@ -620,5 +620,38 @@ class SessionRecordAdditiveKeysTest(unittest.TestCase):
             self.assertNotIn("token_usage", rec)
 
 
+class SkillInvocationTests(unittest.TestCase):
+    def test_skill_tool_use_becomes_event(self):
+        ext = events.Extractor()
+        ext.extract_from_tool_use(
+            {"type": "tool_use", "name": "Skill",
+             "input": {"skill": "brainstorming"}, "id": "t1"},
+            "2026-06-01T10:00:00Z")
+        evs = [e for e in ext.events if e["type"] == "skill_invoke"]
+        self.assertEqual(len(evs), 1)
+        self.assertEqual(evs[0]["name"], "brainstorming")
+        self.assertEqual(evs[0]["source"], "skill_tool")
+
+    def test_slash_command_in_user_text_becomes_event(self):
+        ext = events.Extractor()
+        ext.extract_slash_command(
+            "<command-name>/code-review</command-name>", "2026-06-01T10:01:00Z")
+        evs = [e for e in ext.events if e["type"] == "skill_invoke"]
+        self.assertEqual(len(evs), 1)
+        self.assertEqual(evs[0]["name"], "code-review")
+        self.assertEqual(evs[0]["source"], "slash_command")
+
+    def test_skills_invoked_signal_dedups_and_counts(self):
+        evs = [
+            {"type": "skill_invoke", "name": "brainstorming", "source": "skill_tool"},
+            {"type": "skill_invoke", "name": "brainstorming", "source": "skill_tool"},
+            {"type": "skill_invoke", "name": "code-review", "source": "slash_command"},
+        ]
+        sig = events._extract_event_signals(evs)
+        self.assertEqual(sig["skills_invoked"]["total"], 3)
+        self.assertEqual(sig["skills_invoked"]["unique"], 2)
+        self.assertEqual(sig["skills_invoked"]["by_name"]["brainstorming"], 2)
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)
