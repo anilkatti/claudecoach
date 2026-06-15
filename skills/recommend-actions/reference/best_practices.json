@@ -1,0 +1,19 @@
+{
+  "built_at": "seed",
+  "practices": [
+    {
+      "id": "plan-before-big-change",
+      "principle": "For multi-step or hard-to-reverse work, set up a plan before diving in, scaled to the task.",
+      "applies_to_signal": "planning",
+      "source_url": "https://platform.claude.com/docs/en/build-with-claude/effort.md",
+      "source_org": "anthropic"
+    },
+    {
+      "id": "verify-before-done",
+      "principle": "Hold the output to a standard — verify or test before calling it done rather than accepting unread.",
+      "applies_to_signal": "verification",
+      "source_url": "https://platform.claude.com/docs/en/agents-and-tools/tool-use/overview.md",
+      "source_org": "anthropic"
+    }
+  ]
+}
