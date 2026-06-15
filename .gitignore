@@ -4,3 +4,4 @@ sessions.jsonl
 episodes.json
 .deepwork/
 .gstack/
+.DS_Store
