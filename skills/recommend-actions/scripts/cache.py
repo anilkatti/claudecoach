@@ -51,7 +51,8 @@ def is_fresh(cache, profile_generated_at, now_iso=None, ttl_days=TTL_DAYS):
 
 
 def write_cache(profile_dir, candidates, profile_generated_at, network_used, now_iso=None):
-    """Persist the scout's candidates for this profile version; return the path written."""
+    """Persist the scout's candidates for this profile version; return the path written.
+    No TTL is stored in the file; staleness is enforced at read time by is_fresh()."""
     now = now_iso or datetime.now(timezone.utc).isoformat()
     doc = {
         "schema_version": 1,

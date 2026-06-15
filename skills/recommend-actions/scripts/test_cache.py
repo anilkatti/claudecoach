@@ -93,3 +93,8 @@ def test_write_cli_persists_candidates(tmp_path):
         capture_output=True, text=True, check=True).stdout
     assert json.loads(out)["count"] == 1
     assert cache.load_cache(str(tmp_path))["network_used"] is True
+
+
+def test_load_cache_returns_none_on_corrupt_json(tmp_path):
+    (tmp_path / "capabilities_cache.json").write_text("not json{")
+    assert cache.load_cache(str(tmp_path)) is None
