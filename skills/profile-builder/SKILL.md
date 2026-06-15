@@ -94,6 +94,17 @@ model tiers). Remind them the profiles are LLM-derived and nondeterministic, tha
 this is the current project only (cross-project merge is a later phase), and that
 `context_health`/`gaps` are signals for a coach, not recommendations from here.
 
+## Step 9 — Offer to visualize (after the profile is persisted)
+Once the files are written, **ask the user** whether they'd like to see it:
+> "Your profile is saved. Want me to open a visual summary in your browser?"
+
+If they say yes, run `python scripts/visualize.py "~/.claude/profiles/<slug>"`. It
+renders both profiles into one easily-digestible `profile.html` — plain-English
+summaries, behavioral signals, friction, strengths/gaps, your config-health, with
+evidence shown as quotes — and opens it in the default browser. Written for any
+audience, not just developers. If they decline, skip it; the JSON files are
+already on disk and they can run it later.
+
 ## Honesty rails
 - Consent before reading; secrets scrubbed before anything leaves the machine.
 - Seeded sampling makes the tail reproducible, but the recent set is mtime-based,
