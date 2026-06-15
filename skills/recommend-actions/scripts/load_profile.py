@@ -6,7 +6,6 @@ import argparse
 import json
 import os
 import re
-import sys
 from datetime import datetime, timezone
 
 MAX_AGE_DAYS = 14  # profiles older than this are flagged stale; overridable per-call

@@ -31,9 +31,12 @@ Every candidate's evidence must cite the `context_health` field or `friction_sig
 entry it rests on, with a verbatim quote where one exists.
 
 ## Output — ONLY a JSON array of candidate actions (no prose, no code fences)
-`family: "config"`. `apply_hint.kind`: `edit_file` (capture_context / trim of a
-context file — put the exact diff in `preview`) or `handoff_skill` (hooks, permissions,
-description sharpening → set `handoff`).
+`family: "config"`. Choose `apply_hint.kind`:
+- `edit_file` — capture_context, or a trim that edits a context file; put the exact diff in `preview`.
+- `archive` — a trim that REMOVES an unused/duplicate capability (a skill/command/MCP
+  dir or symlink); put the capability's path in `preview`. Reversible — the apply loop
+  archives (moves) it, never deletes.
+- `handoff_skill` — hooks, permissions, or sharpening overlapping descriptions; set `handoff`.
 
 ## Input
 LANE_JSON:

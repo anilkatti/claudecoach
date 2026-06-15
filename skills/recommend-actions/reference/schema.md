@@ -36,11 +36,11 @@ output of `split_lanes`, not raw profile field names.
   "evidence": [{"signal": "user.friction_signals[1]", "detail": "...",
                 "quote": "session:<id> \"verbatim\"", "confidence": 0.0}],
   "impact_estimate": {"kind": "tokens_saved | reexplains_avoided | qualitative",
-                      "value": 0, "basis": "<which profile number this came from>"},
+                      "value": 0, "basis": "<provenance: profile number or k-of-n count this came from>"},
   "source": {"kind": "curated_index | live_web | local_signal",
              "ref": "capabilities_index:<name>", "url": "", "freshness": "built_at <date>"},
   "effort": "low | medium | high",
-  "apply_hint": {"kind": "run_command | scaffold_skill | edit_file | handoff_skill | advisory",
+  "apply_hint": {"kind": "run_command | scaffold_skill | edit_file | handoff_skill | archive | advisory",
                  "preview": "<exact command / diff / handoff text>",
                  "handoff": "skill-creator | update-config | fewer-permission-prompts | null",
                  "reversible": true}
@@ -71,7 +71,7 @@ output of `split_lanes`, not raw profile field names.
 ```
 
 `apply.kind` takes the same values as `apply_hint.kind`
-(`run_command | scaffold_skill | edit_file | handoff_skill | advisory`); the synthesizer
+(`run_command | scaffold_skill | edit_file | handoff_skill | archive | advisory`); the synthesizer
 resolves each candidate's `apply_hint` into the concrete `apply` block.
 
 ## Curated index schemas (written by `build_indexes.py`)
@@ -89,6 +89,9 @@ resolves each candidate's `apply_hint` into the concrete `apply` block.
  "practices": [{"id": "...", "principle": "...", "applies_to_signal": "<behavioral_signals key or habit>",
                 "source_url": "...", "source_org": "anthropic | openai"}]}
 ```
+
+`build_indexes.py` also writes a top-level `dropped: [...]` array on each index
+(sources or records it skipped) so a degraded build is visible, never silent.
 
 ## Honesty rails (enforced in prompts + code)
 - Every action cites a profile signal; the synthesizer drops candidates that can't re-ground.

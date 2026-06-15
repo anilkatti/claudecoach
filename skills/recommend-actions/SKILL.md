@@ -54,7 +54,8 @@ Dispatch `prompts/action_synthesizer.md` with model: opus, substituting:
 - `{{CANDIDATES_JSON}}` = `candidates`,
 - `{{META_JSON}}` = `{project_slug: slug, generated_at: <now ISO>, profile_ref:
   {generated_at, stale, sessions_sampled}, indexes: {capabilities_built_at,
-  best_practices_built_at}, consent: {network_used}}`.
+  best_practices_built_at}, consent: {network_used}}` — read `capabilities_built_at` /
+  `best_practices_built_at` from each index file's top-level `built_at` key.
 Have it read `reference/schema.md` so field names match. Parse its single JSON object
 (strip fences); validate it parses and has `actions`. Write it to `<dir>/actions.json`.
 
@@ -69,12 +70,12 @@ rationale + `apply.preview`, then ask whether to apply it. Only on an explicit y
 - `run_command` → run the shown command.
 - `edit_file` → show the diff (`python scripts/apply.py diff <path> <new_file>`),
   then `python scripts/apply.py edit <path> <new_file>` (backs up first).
+- `archive` → remove a capability reversibly: `python scripts/apply.py archive <path> <archive_dir>`
+  (moves it to an archive dir; never deletes — undo with `python scripts/apply.py restore <archived> <orig>`).
 - `scaffold_skill` → invoke the `skill-creator` skill with the drafted spec.
 - `handoff_skill` → invoke the named skill (`update-config` / `fewer-permission-prompts`).
 - `advisory` → nothing to apply; it's guidance.
-For a capability removal, use `python scripts/apply.py archive <path> <archive_dir>`
-(reversible) — never delete. Update that action's `apply.status` to `applied`/`skipped`
-in `actions.json` as you go.
+Update that action's `apply.status` to `applied`/`skipped` in `actions.json` as you go.
 
 ## Step 6 — Summarize
 Tell the user where `actions.json` / `actions.html` live, what was applied vs skipped,
