@@ -11,6 +11,7 @@ import random
 import re
 import subprocess
 import sys
+from datetime import datetime
 
 # ---------------------------------------------------------------- discovery ---
 
@@ -112,7 +113,77 @@ def scrub(text):
 # ------------------------------------------------------------------ condense --
 
 _MAX_TEXT = 20000
+# Total per-session condensed-text cap (≈15k tokens). The per-block _MAX_TEXT
+# limit alone doesn't bound a long session, so a head+tail truncation keeps both
+# the opening intent and the closing outcome; truncation is always flagged.
+_MAX_CONDENSED = 60000
 _WRITE_TOOLS = {"Write", "Edit", "MultiEdit", "NotebookEdit"}
+
+# File-extension → material bucket. Lets the sensor measure work for ANY
+# audience (an accountant's .csv edits, a writer's .md drafts), not just code.
+_EXT_BUCKETS = {
+    "code": {".py", ".js", ".ts", ".tsx", ".jsx", ".go", ".rs", ".java", ".rb",
+             ".c", ".h", ".cpp", ".cc", ".cs", ".php", ".swift", ".kt", ".scala",
+             ".sh", ".bash", ".sql", ".html", ".css", ".scss", ".vue", ".r",
+             ".m", ".pl", ".lua"},
+    "data": {".csv", ".tsv", ".xlsx", ".xls", ".parquet", ".ndjson", ".jsonl",
+             ".arrow", ".db", ".sqlite", ".feather"},
+    "doc": {".md", ".markdown", ".txt", ".rst", ".docx", ".doc", ".pdf", ".rtf",
+            ".tex", ".odt"},
+    "config": {".yaml", ".yml", ".toml", ".ini", ".cfg", ".conf", ".env",
+               ".lock", ".xml", ".json", ".properties", ".plist"},
+}
+
+
+def _artifact_bucket(path):
+    """Classify a written/edited file by extension. Unknown/extension-less → 'other'."""
+    ext = os.path.splitext(str(path or ""))[1].lower()
+    for bucket, exts in _EXT_BUCKETS.items():
+        if ext in exts:
+            return bucket
+    return "other"
+
+
+def _parse_iso(ts):
+    """Epoch seconds from an ISO8601 stamp like '2026-06-15T10:00:00.000Z'.
+    None if unparseable. (Sessions stamp each entry with `timestamp`.)"""
+    if not isinstance(ts, str) or not ts:
+        return None
+    try:
+        return datetime.fromisoformat(ts.strip().replace("Z", "+00:00")).timestamp()
+    except ValueError:
+        return None
+
+
+def _truncate(text, cap=_MAX_CONDENSED):
+    """Bound total condensed length, keeping head (intent) + tail (outcome).
+    Returns (text, truncated_flag)."""
+    if len(text) <= cap:
+        return text, False
+    head = cap * 7 // 10
+    tail = cap - head
+    marker = "\n[…profile-builder truncated %d chars…]\n" % (len(text) - cap)
+    return text[:head] + marker + text[-tail:], True
+
+
+def _norm_ws(s):
+    return " ".join(str(s).split()).lower()
+
+
+def verify_quotes(quotes, texts):
+    """Split quotes into (verified, dropped): a quote is verified iff its
+    whitespace-normalized form is a substring of some condensed text. The
+    deterministic guard behind the evidence contract — synthesis may cite only
+    quotes that provably appear in a transcript, so citations can't be invented."""
+    hay = [_norm_ws(t) for t in texts]
+    verified, dropped = [], []
+    for q in quotes:
+        needle = _norm_ws(q)
+        if needle and any(needle in h for h in hay):
+            verified.append(q)
+        else:
+            dropped.append(q)
+    return verified, dropped
 
 # Harness-injected wrappers that are not genuine user prompting. Skipped so the
 # LLM reads real behavior, not slash-command / system machinery.
@@ -165,10 +236,11 @@ def _render_tool_use(name, inp):
 def condense(path):
     """Parse one session .jsonl into scrubbed condensed text + facts. Returns a
     dict, or None if the file can't be opened."""
-    lines, n_user, first_prompt = [], 0, None
+    lines, n_user, first_prompt, ts_seen = [], 0, None, []
     facts = {"user_messages": 0, "assistant_messages": 0, "tool_uses": 0,
              "tool_results": 0, "code_edits": 0, "git_commits": 0,
-             "subagent_dispatches": 0}
+             "subagent_dispatches": 0, "tool_errors": 0,
+             "artifacts": {"code": 0, "data": 0, "doc": 0, "config": 0, "other": 0}}
     try:
         fh = open(path, "r", encoding="utf-8", errors="replace")
     except OSError:
@@ -182,6 +254,9 @@ def condense(path):
                 entry = json.loads(raw)
             except json.JSONDecodeError:
                 continue
+            t = _parse_iso(entry.get("timestamp"))
+            if t is not None:
+                ts_seen.append(t)
             msg = entry.get("message") if isinstance(entry.get("message"), dict) else entry
             role = msg.get("role") or entry.get("type") or ""
             for b in _normalize_content(msg.get("content")):
@@ -206,6 +281,9 @@ def condense(path):
                     facts["tool_uses"] += 1
                     if name in _WRITE_TOOLS:
                         facts["code_edits"] += 1
+                        _inp = b.get("input") or {}
+                        _path = _inp.get("file_path") or _inp.get("notebook_path") or ""
+                        facts["artifacts"][_artifact_bucket(_path)] += 1
                     if name in ("Task", "Agent"):
                         facts["subagent_dispatches"] += 1
                     if name == "Bash" and "git commit" in str((b.get("input") or {}).get("command", "")):
@@ -213,10 +291,15 @@ def condense(path):
                     lines.append(_render_tool_use(name, b.get("input")))
                 elif bt == "tool_result":
                     facts["tool_results"] += 1
+                    if b.get("is_error"):
+                        facts["tool_errors"] += 1
                     content = b.get("content")
                     size = len(json.dumps(content)) if content is not None else 0
                     lines.append("[ToolResult: %d bytes]" % size)
     text = "\n".join(lines)
+    text, truncated = _truncate(text)
+    facts["duration_seconds"] = (
+        int(round(max(ts_seen) - min(ts_seen))) if len(ts_seen) >= 2 else 0)
     return {
         "session_id": os.path.splitext(os.path.basename(path))[0],
         "path": path,
@@ -226,6 +309,7 @@ def condense(path):
         # Trivial = no genuine user prompt at all, or almost no content. A single
         # substantial prompt (e.g. a headless/programmatic run) is analyzable.
         "too_short": n_user < 1 or len(text) < 200,
+        "truncated": truncated,
         "first_prompt": first_prompt or "",
         "facts": facts,
     }
@@ -272,10 +356,17 @@ def main(argv=None):
     p.add_argument("--sample", type=int, default=15)
     p.add_argument("--min-chars", type=int, default=800)
     p.add_argument("--seed", type=int, default=0)
+    sub.add_parser("verify", help="read {quotes,texts} JSON on stdin -> {verified,dropped}; "
+                                   "the deterministic evidence-contract guard")
     args = ap.parse_args(argv)
     if args.cmd == "prepare":
         out = prepare(args.cwd, args.recent, args.sample, args.min_chars, args.seed)
         json.dump(out, sys.stdout, indent=2)
+        sys.stdout.write("\n")
+    elif args.cmd == "verify":
+        payload = json.load(sys.stdin)
+        verified, dropped = verify_quotes(payload.get("quotes", []), payload.get("texts", []))
+        json.dump({"verified": verified, "dropped": dropped}, sys.stdout, indent=2)
         sys.stdout.write("\n")
     return 0
 

@@ -1,3 +1,4 @@
+import io
 import json as _json
 import os
 import sys
@@ -265,3 +266,113 @@ def test_inventory_handles_missing_dirs(tmp_path, monkeypatch):
     monkeypatch.setenv("HOME", str(tmp_path / "empty_home"))
     inv = inventory.inventory(repo=str(tmp_path / "empty_repo"))
     assert inv == {"skills": [], "commands": [], "agents": [], "mcp_servers": []}
+
+
+# ================================================= friction / neutral facts ===
+# v2: the sensor must work for non-developers, so "work" is measured as
+# artifacts of ANY type (not just code), plus deterministic friction signals
+# (tool errors, wall-clock duration). Grounded in the real session schema:
+# entries carry an ISO8601 `timestamp`; tool_result blocks carry `is_error`.
+
+def _write_friction_session(tmp_path):
+    entries = [
+        {"type": "user", "timestamp": "2026-06-15T10:00:00.000Z",
+         "message": {"role": "user", "content": [
+             {"type": "text", "text": "Reconcile the ledger and update the workbook."}]}},
+        {"type": "assistant", "timestamp": "2026-06-15T10:00:05.000Z",
+         "message": {"role": "assistant", "content": [
+             {"type": "tool_use", "name": "Write", "input": {"file_path": "report.md", "content": "Z" * 50}},
+             {"type": "tool_use", "name": "Edit", "input": {"file_path": "data/ledger.csv", "old_string": "a", "new_string": "b"}},
+             {"type": "tool_use", "name": "Edit", "input": {"file_path": "app.py", "old_string": "a", "new_string": "b"}},
+             {"type": "tool_use", "name": "Write", "input": {"file_path": "config.yaml", "content": "k: v"}},
+             {"type": "tool_use", "name": "Write", "input": {"file_path": "Makefile", "content": "all:"}}]}},
+        {"type": "user", "timestamp": "2026-06-15T10:05:00.000Z",
+         "message": {"role": "user", "content": [
+             {"type": "tool_result", "tool_use_id": "t1", "is_error": True, "content": "boom"}]}},
+        {"type": "user", "timestamp": "2026-06-15T10:10:00.000Z",
+         "message": {"role": "user", "content": [
+             {"type": "tool_result", "tool_use_id": "t2", "content": "ok"},
+             {"type": "text", "text": "Now also export a summary, please."}]}},
+    ]
+    p = tmp_path / "fr.jsonl"
+    with open(p, "w") as fh:
+        for e in entries:
+            fh.write(_json.dumps(e) + "\n")
+    return str(p)
+
+
+def test_condense_counts_tool_errors(tmp_path):
+    out = sessions.condense(_write_friction_session(tmp_path))
+    assert out["facts"]["tool_errors"] == 1
+    assert out["truncated"] is False
+
+
+def test_condense_buckets_artifacts_by_material_type(tmp_path):
+    # An accountant editing a .csv and a .md is doing real work; v1 counted
+    # only "code_edits" and would score this session as empty.
+    a = sessions.condense(_write_friction_session(tmp_path))["facts"]["artifacts"]
+    assert a["doc"] == 1       # report.md
+    assert a["data"] == 1      # data/ledger.csv
+    assert a["code"] == 1      # app.py
+    assert a["config"] == 1    # config.yaml
+    assert a["other"] == 1     # Makefile (no extension)
+
+
+def test_condense_computes_duration_seconds(tmp_path):
+    out = sessions.condense(_write_friction_session(tmp_path))
+    assert out["facts"]["duration_seconds"] == 600   # 10:00:00 -> 10:10:00
+
+
+def test_condense_duration_zero_without_timestamps(tmp_path):
+    p = tmp_path / "nots.jsonl"
+    p.write_text(_json.dumps({"type": "user", "message": {"role": "user", "content": [
+        {"type": "text", "text": "hello there, please do the thing " * 5}]}}) + "\n")
+    out = sessions.condense(str(p))
+    assert out["facts"]["duration_seconds"] == 0
+
+
+def test_condense_truncates_oversized_text(tmp_path):
+    # Many large turns sum past the total cap even though each block is under
+    # the per-block limit; truncation must be flagged, never silent.
+    entries = [{"type": "user", "message": {"role": "user", "content": [
+        {"type": "text", "text": ("chunk%02d " % i) + ("z" * 18000)}]}} for i in range(12)]
+    p = tmp_path / "big.jsonl"
+    with open(p, "w") as fh:
+        for e in entries:
+            fh.write(_json.dumps(e) + "\n")
+    out = sessions.condense(str(p))
+    assert out["truncated"] is True
+    assert len(out["condensed_text"]) <= sessions._MAX_CONDENSED + 80
+
+
+# ===================================================== quote verification ===
+# v2 fixes the broken evidence contract: synthesis may only cite quotes that
+# provably appear in a condensed transcript. This is the deterministic guard.
+
+def test_verify_quotes_keeps_real_substrings_drops_fabrications():
+    texts = ["USER: Reconcile the ledger\nASSISTANT: done", "USER: ship the parser"]
+    verified, dropped = sessions.verify_quotes(
+        ["Reconcile the ledger", "ship the parser", "a quote nobody ever said"], texts)
+    assert set(verified) == {"Reconcile the ledger", "ship the parser"}
+    assert dropped == ["a quote nobody ever said"]
+
+
+def test_verify_quotes_normalizes_whitespace():
+    # Models reflow whitespace when quoting; matching must be whitespace-robust.
+    verified, dropped = sessions.verify_quotes(
+        ["Reconcile   the\nledger"], ["USER: Reconcile the ledger now"])
+    assert verified == ["Reconcile   the\nledger"]
+    assert dropped == []
+
+
+def test_cli_verify_filters_quotes(monkeypatch, capsys):
+    # The orchestrator pipes {quotes, texts} in; the guard returns which quotes
+    # provably appear in a transcript so synthesis can cite only those.
+    payload = {"quotes": ["real one", "totally fabricated"],
+               "texts": ["here is the real one, indeed"]}
+    monkeypatch.setattr(sys, "stdin", io.StringIO(_json.dumps(payload)))
+    rc = sessions.main(["verify"])
+    assert rc == 0
+    out = _json.loads(capsys.readouterr().out)
+    assert out["verified"] == ["real one"]
+    assert out["dropped"] == ["totally fabricated"]
