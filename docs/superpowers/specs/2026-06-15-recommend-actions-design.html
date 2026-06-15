@@ -1,0 +1,514 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>/recommend-actions — Architecture Plan</title>
+<style>
+  :root{
+    --bg:#0f1115; --panel:#161a21; --panel2:#1c222b; --ink:#e8eaed; --muted:#9aa4b2;
+    --line:#2a3038; --accent:#7aa2f7; --good:#7ee787; --warn:#e3b341; --bad:#f7768e;
+    --acquire:#7aa2f7; --config:#e3b341; --author:#bb9af7; --behavior:#7ee787; --synth:#f7768e;
+    --mono:"SF Mono",ui-monospace,"JetBrains Mono",Menlo,Consolas,monospace;
+    --sans:-apple-system,BlinkMacSystemFont,"Segoe UI",Inter,Roboto,system-ui,sans-serif;
+  }
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--sans);line-height:1.6;font-size:15px}
+  .wrap{display:grid;grid-template-columns:264px 1fr;max-width:1300px;margin:0 auto}
+  nav{position:sticky;top:0;align-self:start;height:100vh;overflow:auto;padding:24px 18px;border-right:1px solid var(--line);background:var(--panel)}
+  nav h2{font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin:0 0 12px}
+  nav a{display:block;color:var(--muted);text-decoration:none;font-size:13.5px;padding:4px 8px;border-radius:6px;margin:1px 0}
+  nav a:hover{background:var(--panel2);color:var(--ink)}
+  nav .badge{display:inline-block;font-size:10px;color:var(--bg);background:var(--accent);border-radius:4px;padding:1px 6px;margin-left:6px}
+  nav .badge.new{background:var(--good)}
+  main{padding:40px 48px 120px;min-width:0}
+  header.hero{border-bottom:1px solid var(--line);padding-bottom:24px;margin-bottom:32px}
+  header.hero h1{font-size:30px;margin:0 0 6px;letter-spacing:-.01em}
+  header.hero .sub{color:var(--muted);font-size:16px}
+  .meta{display:flex;gap:18px;flex-wrap:wrap;margin-top:14px;font-size:13px;color:var(--muted)}
+  .meta b{color:var(--ink);font-weight:600}
+  .pill{display:inline-block;padding:2px 10px;border-radius:999px;font-size:12px;border:1px solid var(--line);background:var(--panel2)}
+  .pill.draft{color:var(--warn);border-color:var(--warn)}
+  section{margin:0 0 44px;scroll-margin-top:20px}
+  h2.s{font-size:21px;margin:0 0 14px;padding-bottom:8px;border-bottom:1px solid var(--line);letter-spacing:-.01em}
+  h3{font-size:16px;margin:24px 0 8px;color:var(--ink)}
+  p{margin:10px 0}
+  ul,ol{margin:10px 0;padding-left:22px}
+  li{margin:5px 0}
+  code{font-family:var(--mono);font-size:.86em;background:var(--panel2);padding:1px 6px;border-radius:5px;color:#c4d3ff}
+  pre{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:16px;overflow:auto;font-family:var(--mono);font-size:12.5px;line-height:1.5;color:#cdd6e4}
+  pre b{color:var(--accent);font-weight:600}
+  table{width:100%;border-collapse:collapse;margin:14px 0;font-size:13.5px}
+  th,td{text-align:left;padding:9px 12px;border:1px solid var(--line);vertical-align:top}
+  th{background:var(--panel2);color:var(--ink);font-weight:600;font-size:12.5px;letter-spacing:.02em}
+  td code{white-space:nowrap}
+  .panel{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:18px 20px;margin:14px 0}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+  .grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
+  @media(max-width:900px){.wrap{grid-template-columns:1fr}nav{display:none}.grid2,.grid3{grid-template-columns:1fr}main{padding:28px}}
+  .callout{border-left:3px solid var(--accent);background:var(--panel2);padding:12px 16px;border-radius:0 8px 8px 0;margin:14px 0}
+  .callout.good{border-color:var(--good)} .callout.warn{border-color:var(--warn)} .callout.bad{border-color:var(--bad)}
+  .callout .lbl{font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);margin-bottom:4px;font-weight:700}
+  .agent-card{border:1px solid var(--line);border-radius:12px;padding:0;overflow:hidden;background:var(--panel)}
+  .agent-card .top{padding:14px 16px;border-bottom:1px solid var(--line)}
+  .agent-card .top .name{font-family:var(--mono);font-size:15px;font-weight:700}
+  .agent-card .top .role{color:var(--muted);font-size:13px;margin-top:2px}
+  .agent-card .body{padding:12px 16px;font-size:13px}
+  .agent-card .body div{margin:6px 0}
+  .agent-card .k{color:var(--muted);display:inline-block;min-width:78px;font-size:11.5px;text-transform:uppercase;letter-spacing:.04em;vertical-align:top}
+  .tag{display:inline-block;font-size:11px;padding:1px 8px;border-radius:999px;margin:0 4px 4px 0;border:1px solid var(--line)}
+  .t-acquire{color:var(--acquire);border-color:var(--acquire)}
+  .t-config{color:var(--config);border-color:var(--config)}
+  .t-author{color:var(--author);border-color:var(--author)}
+  .t-behavior{color:var(--behavior);border-color:var(--behavior)}
+  .t-synth{color:var(--synth);border-color:var(--synth)}
+  .v1{color:var(--good);font-weight:700}
+  .v2{color:var(--muted);font-weight:700}
+  .num{color:var(--accent);font-variant-numeric:tabular-nums}
+  .legend{display:flex;gap:16px;flex-wrap:wrap;font-size:12.5px;color:var(--muted);margin:8px 0}
+  .legend span::before{content:"●";margin-right:5px}
+  .footnote{color:var(--muted);font-size:12.5px}
+  hr{border:none;border-top:1px solid var(--line);margin:28px 0}
+  .kbd{font-family:var(--mono);font-size:11px;border:1px solid var(--line);border-bottom-width:2px;border-radius:5px;padding:1px 6px;background:var(--panel2)}
+</style>
+</head>
+<body>
+<div class="wrap">
+<nav>
+  <h2>/recommend-actions</h2>
+  <a href="#goal">1 · Problem &amp; goal</a>
+  <a href="#fit">2 · Where it fits</a>
+  <a href="#decisions">3 · Locked decisions</a>
+  <a href="#catalog">4 · Action catalog <span class="badge new">rev</span></a>
+  <a href="#mapping">5 · Signal → action map</a>
+  <a href="#overview">6 · Architecture overview</a>
+  <a href="#agents">7 · The agents <span class="badge">core</span></a>
+  <a href="#alternatives">8 · Topologies considered</a>
+  <a href="#research">9 · Research mechanism</a>
+  <a href="#contracts">10 · Data contracts</a>
+  <a href="#output">11 · Output &amp; apply</a>
+  <a href="#rails">12 · Rails &amp; exec principles</a>
+  <a href="#layout">13 · File layout</a>
+  <a href="#priorart">14 · Prior art carried forward</a>
+  <a href="#testing">15 · Testing</a>
+  <a href="#risks">16 · Risks &amp; open Qs</a>
+  <a href="#scope">17 · Out of scope</a>
+</nav>
+
+<main>
+<header class="hero">
+  <h1>/recommend-actions</h1>
+  <div class="sub">The Phase-2 coach: turn the profile-builder's signals into prioritized, evidence-cited, opt-in-apply recommendations.</div>
+  <div class="meta">
+    <span><b>Date:</b> 2026-06-15</span>
+    <span><b>Status:</b> <span class="pill draft">Draft v2 — for your review</span></span>
+    <span><b>Input:</b> profile-builder v2 (production sensor)</span>
+    <span><b>Build posture:</b> production from scratch; prior art = ideas, not a dependency</span>
+  </div>
+</header>
+
+<!-- 1 -->
+<section id="goal">
+  <h2 class="s">1 · Problem &amp; goal</h2>
+  <p>profile-builder is a deliberate <b>sensor</b>: it <i>collects</i> evidence-verified signals and explicitly <b>does not judge or recommend</b>. Somebody has to turn those signals into action — <b><code>/recommend-actions</code> is that somebody</b>: the Phase-2 "coach" that reads the profile and produces clear, prioritized, opt-in-apply recommendations for getting more out of Claude.</p>
+  <p>Your four original asks are the spine. This revision broadens each into a <b>family</b> of concrete actions (see §4), but the headline is still four moves:</p>
+  <div class="grid2">
+    <div class="panel"><span class="tag t-acquire">bring in</span><b>Acquire the right capabilities</b><br><span class="footnote">Public skills, MCP servers, or plugins that fill a real gap the profile shows — and never one it can't point to.</span></div>
+    <div class="panel"><span class="tag t-config">tune setup</span><b>Tune your config surface</b><br><span class="footnote"><b>Trim</b> bloat &amp; dead weight · <b>fill</b> the always-on context with facts you keep re-typing · <b>automate</b> repetitive steps.</span></div>
+    <div class="panel"><span class="tag t-author">build asset</span><b>Build a reusable asset from a pattern</b><br><span class="footnote">A recurring procedure becomes the <i>lightest viable</i> artifact — a memory line, a command, or a full skill.</span></div>
+    <div class="panel"><span class="tag t-behavior">work smarter</span><b>Adopt better habits, drop worse ones</b><br><span class="footnote">Match behavioral signals to best practices published by Anthropic &amp; OpenAI — what to start, and what to stop.</span></div>
+  </div>
+  <div class="callout"><div class="lbl">Success criteria</div>Given a project's profile, emit <code>actions.json</code> + an HTML report where <b>every action cites the signal it rests on</b>, research-based actions cite a <b>real dated source</b>, impact is <b>quantified where the data allows</b>, and each action has an <b>opt-in Apply step</b>. No invented skills; no causal claims from correlational data.</div>
+</section>
+
+<!-- 2 -->
+<section id="fit">
+  <h2 class="s">2 · Where it fits + the build posture</h2>
+  <p>The product arc is <b>profile → recommend → (future) monitor</b>. We have beat one. This is beat two, <b>built clean for production</b>.</p>
+<pre>
+  PHASE 1 — SENSE                 PHASE 2 — RECOMMEND  <b>(this plan)</b>        PHASE 3 — MONITOR (future)
+  ┌───────────────────┐          ┌──────────────────────────────┐       ┌────────────────────────┐
+  │  profile-builder   │  signals │      /recommend-actions       │ feeds │  live session coaching  │
+  │  (collect, don't   │ ───────▶ │  (judge + research + apply)   │ ────▶ │  (the notch / nudges)  │
+  │   judge) — PROD    │          │                              │       │                        │
+  └───────────────────┘          └──────────────────────────────┘       └────────────────────────┘
+</pre>
+  <div class="callout warn"><div class="lbl">Build posture (your steering, 2026-06-15)</div>This is a <b>from-scratch production build</b>. <code>hackathon/coach/</code> and <code>~/.claude/skills/recommend-skills/</code> are <b>prior art — proven ideas, not a code dependency</b>. We carry forward <i>concepts</i> (curated-index + LLM-rank, the honesty rails, the habit-catalog idea) and lift a specific file <b>only</b> if it is already production-grade and clearly fits, decided case-by-case at build time — never assumed. See §14.</div>
+  <table>
+    <tr><th>Existing piece</th><th>What it is</th><th>Role here</th></tr>
+    <tr><td><code>skills/profile-builder/</code></td><td>The v2 evidence-verified sensor. Production, tested, lives in <code>skills/</code>.</td><td><b>Production input + the patterns we copy</b> (consent gate, plumbing/LLM split, evidence verification, <code>visualize.py</code>-style HTML, slug encoding).</td></tr>
+    <tr><td><code>hackathon/coach/</code></td><td>Hackathon prototype of a session-scoring coach. Has a working recommender + curated index + habit catalog.</td><td><b>Prior art.</b> Validates the curated-index + Haiku-rank approach and the honesty-rail language. Rebuilt fresh here; lift a file only if production-fit.</td></tr>
+    <tr><td><code>~/.claude/skills/recommend-skills/</code></td><td>A separate personal profile-builder whose "Phase 2 (search)" was never built.</td><td><b>Prior art.</b> Confirms the gap-driven framing. Optional later cleanup (retire/redirect) — <b>not part of this build</b>.</td></tr>
+  </table>
+</section>
+
+<!-- 3 -->
+<section id="decisions">
+  <h2 class="s">3 · Locked decisions</h2>
+  <table>
+    <tr><th>#</th><th>Decision</th><th>Choice</th><th>Consequence</th></tr>
+    <tr><td>1</td><td>Action scope</td><td><b>Advise + opt-in apply</b></td><td>Read-only by default; an Apply engine offers each action with per-action consent. No auto-apply.</td></tr>
+    <tr><td>2</td><td>Build vs reuse</td><td><b>Single Phase-2, built fresh</b> <span class="footnote">(revised from "reuse assets" per your steering)</span></td><td>One production recommender consuming profile-builder; prior art informs design; code lifted only when production-fit.</td></tr>
+    <tr><td>3</td><td>Research source</td><td><b>Curated index + live top-up</b></td><td>Repo-shipped curated catalogs refreshed by an offline build script (with <code>built_at</code>); runtime may WebSearch/WebFetch to top-up &amp; verify.</td></tr>
+    <tr><td>4</td><td>Deliverable</td><td><b>HTML report + JSON</b></td><td>Browser <code>actions.html</code> (matches <code>profile.html</code>) + machine-readable <code>actions.json</code> for Phase 3.</td></tr>
+  </table>
+</section>
+
+<!-- 4 -->
+<section id="catalog">
+  <h2 class="s">4 · Action catalog — the vital few <span class="footnote" style="font-weight:400">(thought wide, then cut)</span></h2>
+  <p>Thinking like an exec: brainstorm broadly, then ship the few that move the needle and defer the rest with a reason. The families stay at four; the <i>action types</i> inside them get richer. <span class="v1">Green = v1.</span> <span class="v2">Grey = deferred.</span></p>
+  <table>
+    <tr><th>Family</th><th>Action type</th><th>Trigger signal</th><th>Why it earns a slot</th><th>Status</th></tr>
+    <tr><td rowspan="3"><span class="tag t-acquire">bring in</span><br>capability-scout</td>
+        <td>Install a public <b>skill</b></td><td><code>gaps</code>, <code>task_archetypes</code> − owned</td><td>Your original ask #1; the core gap-filler.</td><td class="v1">v1</td></tr>
+    <tr><td>Add an <b>MCP server</b></td><td><code>mcp_footprint</code> + domain gaps</td><td>MCP tool-defs are a big context cost; the <i>right</i> ones are high-leverage.</td><td class="v1">v1</td></tr>
+    <tr><td>Add a <b>plugin</b></td><td>domain/archetype gaps</td><td>Some capabilities ship as plugins, not loose skills.</td><td class="v1">v1</td></tr>
+    <tr><td rowspan="5"><span class="tag t-config">tune setup</span><br>config-doctor</td>
+        <td><b>Trim</b> unused / duplicate capabilities</td><td><code>unused</code>, <code>duplicate_capabilities</code></td><td>Your ask #2; cut always-on bloat.</td><td class="v1">v1</td></tr>
+    <tr><td><b>Merge / sharpen</b> overlapping skills</td><td><code>overlapping_capabilities</code></td><td>Overlap ≠ duplicate — sharpening descriptions fixes wrong-skill triggering.</td><td class="v1">v1</td></tr>
+    <tr><td><b>Capture recurring context</b> → CLAUDE.md / memory</td><td><code>friction.reexplained_context</code></td><td><b>Highest ROI move.</b> Promote facts you re-type every session into always-on context. The profile flags this as its richest signal.</td><td class="v1">v1 ★</td></tr>
+    <tr><td><b>Automate</b> a repetitive step → hook</td><td>repeated manual step in friction</td><td>Turns a remembered habit into enforced automation (hands to <code>update-config</code>).</td><td class="v1">v1</td></tr>
+    <tr><td><b>Cut permission friction</b> → settings allowlist</td><td>repeated approval friction</td><td>Removes a constant papercut (hands to <code>fewer-permission-prompts</code>).</td><td class="v1">v1</td></tr>
+    <tr><td rowspan="1"><span class="tag t-author">build asset</span><br>pattern-smith</td>
+        <td>Author the <b>lightest viable artifact</b> (memory line ▸ command ▸ skill)</td><td>high-weight <code>task_archetypes</code> w/o owner, recurring <code>rework</code></td><td>Your ask #3 — generalized so we don't build a skill when a one-liner suffices.</td><td class="v1">v1</td></tr>
+    <tr><td rowspan="2"><span class="tag t-behavior">work smarter</span><br>practice-coach</td>
+        <td><b>Adopt</b> a best practice</td><td>weak <code>behavioral_signals</code></td><td>Your ask #4; cited to Anthropic/OpenAI source.</td><td class="v1">v1</td></tr>
+    <tr><td><b>Stop</b> an anti-pattern</td><td><code>habits.polarity = holding-back</code></td><td>"Stop doing X" is half of good coaching; the subtractive side.</td><td class="v1">v1</td></tr>
+    <tr><td colspan="2">Team / repo config sharing (commit <code>.claude/</code>)</td><td>shared <code>git_remote</code></td><td>Org-level leverage — but org-dependent &amp; needs a sharing signal.</td><td class="v2">v2</td></tr>
+    <tr><td colspan="2">Model / tier selection (cheap model for mechanical work)</td><td>— (not captured)</td><td>Great cost lever, but needs a <b>new sensor signal</b> (per-session model usage) profile-builder lacks today.</td><td class="v2">defer*</td></tr>
+    <tr><td colspan="2">Scheduled / automated runs (<code>/schedule</code>)</td><td>recurring task cadence</td><td>Niche; only a few users have a truly recurring task.</td><td class="v2">v2</td></tr>
+  </table>
+  <p class="footnote">* "defer*" = blocked on a sensor gap. Worth feeding back to profile-builder as a future signal, not built here.</p>
+</section>
+
+<!-- 5 -->
+<section id="mapping">
+  <h2 class="s">5 · Signal → action mapping</h2>
+  <p>The contract that keeps recommendations grounded: an action with no backing signal is a bug. Research need is what splits the agents into local vs networked lanes.</p>
+  <table>
+    <tr><th>Family / agent</th><th>Reads from the profile</th><th>Research?</th><th>Apply path</th></tr>
+    <tr><td><span class="tag t-acquire">bring in</span> capability-scout</td><td><code>project.gaps</code>, <code>user.gaps</code>, <code>task_archetypes</code>, <code>domains</code>, <code>tools_and_materials</code>, <code>mcp_footprint</code> − <code>owned_capabilities</code></td><td>Yes (index + live)</td><td>run install command / handoff</td></tr>
+    <tr><td><span class="tag t-config">tune setup</span> config-doctor</td><td><code>context_health</code> (unused/duplicate/overlapping/always_on/mcp) <b>+</b> <code>friction_signals</code> (reexplained_context, repeated steps)</td><td>No (local)</td><td>edit_file (diff+backup) / handoff to update-config &amp; fewer-permission-prompts</td></tr>
+    <tr><td><span class="tag t-author">build asset</span> pattern-smith</td><td><code>friction_signals</code>, high-weight <code>task_archetypes</code> w/o owner, <code>rework</code></td><td>No (local synth)</td><td>edit_file (memory) / scaffold via skill-creator</td></tr>
+    <tr><td><span class="tag t-behavior">work smarter</span> practice-coach</td><td><code>behavioral_signals</code>, <code>friction_signals</code>, <code>habits</code> (both polarities)</td><td>Yes (catalog + live)</td><td>advisory (mostly) / handoff for config-backed habits</td></tr>
+  </table>
+</section>
+
+<!-- 6 -->
+<section id="overview">
+  <h2 class="s">6 · Architecture overview</h2>
+  <p>Same shape that already works for profile-builder: <b>deterministic Python plumbing</b> at the edges, <b>LLM subagents</b> for judgment in the middle, with a hard evidence contract between them. The new twist: a <b>fan-out of four specialists</b> (one per family) feeding a single <b>synthesizer</b>.</p>
+<pre>
+                         ~/.claude/profiles/&lt;slug&gt;/
+                         project.profile.json + user.profile.json
+                                      │
+                  <b>load_profile.py</b> (Python): resolve slug from cwd, validate,
+                  check freshness, split signals into 4 lanes. No profile →
+                  stop and offer to run /profile-builder.
+                                      │
+        ┌─────────────────┬──────────┴───────────┬─────────────────────┐
+        ▼                 ▼                       ▼                     ▼
+  <b>① capability-scout</b>  <b>② config-doctor</b>        <b>③ pattern-smith</b>        <b>④ practice-coach</b>
+  bring in skills/MCP/   trim · fill · automate   build the lightest      adopt + stop habits
+  plugins for gaps       the local config surface  viable reusable asset   from best-practice cat.
+  → rank curated index   → local-only edits        → memory ▸ cmd ▸ skill  → match catalog (+live)
+   (+ live verify)        (diff + backup)                                   (cite source + date)
+        │                 │                       │                     │
+        └─────────────────┴──────────┬────────────┴─────────────────────┘
+                                      ▼
+                         <b>⑤ action-synthesizer</b> (Opus)
+                         dedupe · resolve form (install? hook? skill? memory line?) ·
+                         prioritize (impact × confidence; quantify where possible) ·
+                         enforce evidence contract · emit <b>actions.json</b>
+                                      │
+                         <b>render.py</b> (Python, deterministic)
+                                      │
+                 ┌────────────────────┴────────────────────┐
+                 ▼                                          ▼
+          <b>actions.html</b> (browser)                    console summary
+                 │
+          <b>Apply engine</b> (interactive, main loop — per-action consent)
+          install · skill-creator · edit CLAUDE.md (diff) · archive/unlink ·
+          update-config (hooks) · fewer-permission-prompts (allowlist)
+</pre>
+  <div class="legend">
+    <span style="color:var(--acquire)">capability-scout (research)</span>
+    <span style="color:var(--config)">config-doctor (local)</span>
+    <span style="color:var(--author)">pattern-smith (local)</span>
+    <span style="color:var(--behavior)">practice-coach (research)</span>
+    <span style="color:var(--synth)">action-synthesizer (Opus)</span>
+  </div>
+</section>
+
+<!-- 7 -->
+<section id="agents">
+  <h2 class="s">7 · The agents — the multi-agent system</h2>
+  <p><b>Topology: specialist fan-out → Opus synthesizer.</b> Four specialists run <b>in parallel</b> (no shared state, no ordering), each owning one family and emitting <i>candidate</i> actions to a shared schema. A fifth reconciles across families and produces the final ranked set. <b>All five default to Opus 4.8</b> — every call here is a judgment call (see the model-tier note below); profile-builder's Haiku-for-volume logic doesn't transfer, because this skill makes ~5 calls over a distilled profile, not one-per-session over transcripts. Each agent stays small &amp; testable; web tools go only to the two research lanes.</p>
+
+  <div class="grid2" style="margin-top:16px">
+    <div class="agent-card">
+      <div class="top" style="border-top:3px solid var(--acquire)">
+        <div class="name">① capability-scout</div>
+        <div class="role">Bring in skills, MCP servers, or plugins that fill a real gap.</div>
+      </div>
+      <div class="body">
+        <div><span class="k">Model</span> Opus 4.8 — gap-fit + existence-verify is trust-critical</div>
+        <div><span class="k">Reads</span> gaps, task_archetypes, domains, tools_and_materials, mcp_footprint − owned_capabilities</div>
+        <div><span class="k">Tools</span> curated <code>capabilities_index.json</code> + <span class="kbd">WebSearch</span>/<span class="kbd">WebFetch</span> (top-up &amp; verify)</div>
+        <div><span class="k">Emits</span> acquire candidates: name, kind (skill/mcp/plugin), source, url, gap filled, freshness</div>
+        <div><span class="k">Rail</span> <b>Never propose what it can't point to.</b> Empty gap → "no public capability found; consider building one."</div>
+      </div>
+    </div>
+    <div class="agent-card">
+      <div class="top" style="border-top:3px solid var(--config)">
+        <div class="name">② config-doctor</div>
+        <div class="role">Tune the local config: trim · fill · automate.</div>
+      </div>
+      <div class="body">
+        <div><span class="k">Model</span> Opus 4.8 — drafting context/descriptions is judgment, not mechanics</div>
+        <div><span class="k">Reads</span> <code>context_health</code> + the config-relevant <code>friction_signals</code></div>
+        <div><span class="k">Emits</span> <b>trim</b> (unused/dupes/dead MCP, token saving) · <b>fill</b> (capture reexplained facts → CLAUDE.md/memory) · <b>automate</b> (hook, permission allowlist, sharpen overlapping descriptions)</div>
+        <div><span class="k">Rail</span> "unused" = "unused <i>in the sample</i>." All edits reversible &amp; consent-gated; quantify token impact from the real counts.</div>
+      </div>
+    </div>
+    <div class="agent-card">
+      <div class="top" style="border-top:3px solid var(--author)">
+        <div class="name">③ pattern-smith</div>
+        <div class="role">Turn a recurring pattern into the lightest viable asset.</div>
+      </div>
+      <div class="body">
+        <div><span class="k">Model</span> Opus 4.8 — creative synthesis of a new asset</div>
+        <div><span class="k">Reads</span> friction_signals, high-weight task_archetypes lacking an owner, rework</div>
+        <div><span class="k">Emits</span> a proposal + chosen <b>form</b> (memory line ▸ slash command ▸ full skill) with the pattern it resolves + evidence</div>
+        <div><span class="k">Rail</span> Only where the pattern recurs across ≥k sampled sessions; cite the count. Prefer the lightest form. Hands to <code>skill-creator</code> on apply — never writes the asset itself.</div>
+      </div>
+    </div>
+    <div class="agent-card">
+      <div class="top" style="border-top:3px solid var(--behavior)">
+        <div class="name">④ practice-coach</div>
+        <div class="role">Start good habits, stop bad ones — cited.</div>
+      </div>
+      <div class="body">
+        <div><span class="k">Model</span> Opus 4.8 — must not give generic or uncited advice</div>
+        <div><span class="k">Reads</span> behavioral_signals, friction_signals, habits (both polarities)</div>
+        <div><span class="k">Tools</span> curated <code>best_practices.json</code> + <span class="kbd">WebFetch</span> (verify/refresh)</div>
+        <div><span class="k">Emits</span> <b>adopt</b> + <b>stop</b> recommendations: the change, expected effect, <b>source + date</b></div>
+        <div><span class="k">Rail</span> Correlational only ("often alongside…", never "caused"). Every claim cites an Anthropic/OpenAI source with a freshness date.</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="agent-card" style="margin-top:14px">
+    <div class="top" style="border-top:3px solid var(--synth)">
+      <div class="name">⑤ action-synthesizer</div>
+      <div class="role">Reconcile across families; produce the final ranked action set.</div>
+    </div>
+    <div class="body">
+      <div><span class="k">Model</span> <b>Opus</b> — the cross-cutting call (same tier profile-builder uses for synthesis)</div>
+      <div><span class="k">Reads</span> all four candidate lists + the profile (for re-grounding) + index freshness</div>
+      <div><span class="k">Does</span> (a) <b>dedupe</b>; (b) <b>resolve the artifact form</b> — the headline reconciliation: one pattern might arrive as an install (scout), a hook (doctor), a skill (smith), or a context line — pick the lightest that works; (c) <b>prioritize</b> into <code>do_now / consider / fyi</code> from impact × confidence, with effort shown and <b>impact quantified</b> where the data allows; (d) <b>enforce the evidence contract</b> — drop any candidate that can't re-ground in the profile.</div>
+      <div><span class="k">Emits</span> the final <code>actions.json</code> (§10), incl. a <code>not_recommended[]</code> ledger so dropped candidates are visible.</div>
+    </div>
+  </div>
+  <div class="callout"><div class="lbl">Why a separate synthesizer</div>Specialists are intentionally blind to each other so each stays small and testable. <b>Conflicts only exist across families</b> (the same need can become an install, a hook, a skill, or a memory line), so resolving them — and choosing the lightest viable form — needs one agent that sees everything. It's also the single chokepoint for the honesty contract.</div>
+  <div class="callout good"><div class="lbl">Model tiers — why all Opus ("is Haiku enough?")</div>All five agents default to <b>Opus 4.8</b>, exposed as one <code>MODEL_TIER</code> constant. profile-builder's tier split doesn't transfer: it runs <b>Haiku per session across 15–30 sessions</b> (high volume → economize), then <b>Opus once</b> for synthesis. recommend-actions is the opposite shape — <b>~5 calls total</b>, each over the already-distilled profile (a few KB), and <b>every one is a judgment call</b>. At that volume the Haiku→Opus delta is ~$1–2/run (claude-api pricing, cached 2026-06-04: Opus $5/$25 vs Haiku $1/$5 per 1M tok) — negligible for an on-demand tool whose whole value is judgment quality. Sonnet ($3/$15) is a defensible middle for the two lighter lanes (scout ranking, config-doctor trims), but the specialists run in parallel and pattern-smith + the synthesizer are Opus regardless, so mixing tiers barely moves wall-clock or cost. Haiku's real home is a future high-volume "thorough mode" (Topology C), where per-candidate verification fans out into many small checks — with Opus still making the final call.</div>
+</section>
+
+<!-- 8 -->
+<section id="alternatives">
+  <h2 class="s">8 · Topologies considered</h2>
+  <table>
+    <tr><th>Option</th><th>Shape</th><th>Trade-off</th><th>Verdict</th></tr>
+    <tr><td><b>A · Specialist fan-out + synthesizer</b></td><td>4 parallel specialists → 1 Opus reconciler → deterministic render → interactive apply.</td><td>Clean separation, parallel/fast, proven pattern, web tools scoped to research lanes. Cost: 5 dispatches + a reconciliation step.</td><td class="num"><b>✓ Chosen</b></td></tr>
+    <tr><td>B · Monolithic recommender</td><td>One Opus agent reads everything, emits all actions.</td><td>Simplest, one dispatch. But not multi-agent (you asked for multi-agent), no parallelism, one giant hard-to-test prompt, can't scope web tools.</td><td>Rejected</td></tr>
+    <tr><td>C · Deep per-family pipelines (find → adversarially verify → draft)</td><td>Each family a multi-stage pipeline with a skeptic per candidate, then synthesize.</td><td>Highest rigor. But many more dispatches &amp; complexity — overkill for v1.</td><td>Deferred — borrow its <b>per-candidate verify</b> now; full pipelines = v2 "thorough mode."</td></tr>
+  </table>
+  <p class="footnote">Net: <b>A</b>, with one idea from <b>C</b> — capability-scout and practice-coach <i>verify</i> each candidate (does this still exist? is this source live?) before it reaches the synthesizer, serving the "never recommend what you can't point to" rail.</p>
+</section>
+
+<!-- 9 -->
+<section id="research">
+  <h2 class="s">9 · Research mechanism (curated index + live top-up)</h2>
+  <p>Two repo-shipped curated catalogs are the <b>spine</b>; live web is the <b>top-up</b>. This honors decision #3 and the rationale recorded in the prior coach design (which cites <i>ToolRet</i> arXiv:2503.01763 and arXiv:2406.17465 for "LLM-ranks-a-curated-index beats embedding retrieval on small tool/skill corpora" — as cited there, not independently re-verified here) while still genuinely "doing research."</p>
+  <div class="grid2">
+    <div class="panel">
+      <h3 style="margin-top:0">Build time (offline, networked)</h3>
+      <p><code>scripts/build_indexes.py</code> — <b>written fresh</b> (the coach's <code>build_skills_index.py</code> is a reference, not a base). Fetches the public skills/plugin marketplace + Anthropic/OpenAI best-practice docs, normalizes, stamps <code>built_at</code>. Degrades gracefully: skip an unreachable source and <b>log what was dropped</b> — never ship a half-built index silently.</p>
+      <ul>
+        <li><code>reference/capabilities_index.json</code> — <code>{name, kind: skill|mcp|plugin, source, one_liner, when_to_use, tags, url}</code></li>
+        <li><code>reference/best_practices.json</code> — <code>{id, principle, applies_to_signal, source_url, source_org, built_at}</code></li>
+      </ul>
+    </div>
+    <div class="panel">
+      <h3 style="margin-top:0">Run time (local + optional live)</h3>
+      <p>Ranking/matching runs against the curated catalogs (offline, always works). With network consent, the research lanes may:</p>
+      <ul>
+        <li><b>Top-up</b> — <span class="kbd">WebSearch</span> for capabilities newer than <code>built_at</code>;</li>
+        <li><b>Verify</b> — <span class="kbd">WebFetch</span> to confirm a recommended capability/source still exists before it ships.</li>
+      </ul>
+      <p>Every research-based action carries <code>source</code> + <code>freshness</code>.</p>
+    </div>
+  </div>
+  <div class="callout warn"><div class="lbl">Network consent</div>The run opens with a consent gate. Curated path is fully local; <b>live top-up is the only network use</b> and is announced up front. Decline → curated-only run, flagged as such in the report.</div>
+</section>
+
+<!-- 10 -->
+<section id="contracts">
+  <h2 class="s">10 · Data contracts</h2>
+  <h3>Candidate action (every specialist emits a list of these)</h3>
+<pre>{
+  "family": "acquire | config | author | behavior",
+  "action_type": "install_skill | add_mcp | add_plugin | trim | merge_sharpen |
+                  capture_context | automate_hook | cut_permission_friction |
+                  author_asset | adopt_practice | stop_antipattern",
+  "title": "&lt;short imperative&gt;",
+  "rationale": "&lt;plain-English why&gt;",
+  "evidence": [{ "signal": "user.friction_signals[1].reexplained_context",
+                 "detail": "...", "quote": "session:&lt;id&gt; \"verbatim\"", "confidence": 0.0 }],
+  "impact_estimate": { "kind": "tokens_saved | reexplains_avoided | qualitative",
+                       "value": 1300, "basis": "context_health.always_on.est_tokens" },
+  "source": { "kind": "curated_index | live_web | local_signal",
+              "ref": "...", "url": "...", "freshness": "built_at 2026-06-10" },
+  "effort": "low | medium | high",
+  "apply_hint": { "kind": "run_command | scaffold_skill | edit_file | handoff_skill | advisory",
+                  "preview": "&lt;exact command / diff / handoff&gt;",
+                  "handoff": "skill-creator | update-config | fewer-permission-prompts | null",
+                  "reversible": true }
+}</pre>
+  <h3>Final <code>actions.json</code> (synthesizer → render → Phase 3)</h3>
+<pre>{
+  "schema_version": 1,
+  "generated_at": "&lt;ISO8601&gt;",
+  "project_slug": "&lt;cwd encoded: re.sub('[^a-zA-Z0-9]','-', abspath)&gt;",
+  "profile_ref": { "generated_at": "...", "stale": false, "sessions_sampled": 15 },
+  "indexes": { "capabilities_built_at": "...", "best_practices_built_at": "..." },
+  "consent": { "network_used": true },
+  "actions": [ { "id": "capture-coa-context", "family": "config",
+                 "action_type": "capture_context", "priority": "do_now",
+                 "title": "...", "rationale": "...", "evidence": [...],
+                 "impact_estimate": {...}, "source": {...}, "effort": "low",
+                 "apply": { "kind": "edit_file", "preview": "&lt;diff&gt;", "reversible": true,
+                            "handoff": null, "status": "pending | applied | skipped" } } ],
+  "not_recommended": [ { "considered": "...", "why_dropped": "superseded by &lt;id&gt; / no source found" } ],
+  "disclaimer": "LLM-derived from an evidence-verified but partial sample; nondeterministic;
+                 research as fresh as the index build + any live top-up."
+}</pre>
+  <p class="footnote">Contract discipline matches the project: each unit reads/writes one flat JSON; <code>render.py</code> is the only joiner; this schema is the seam Phase-3 monitoring consumes.</p>
+</section>
+
+<!-- 11 -->
+<section id="output">
+  <h2 class="s">11 · Output &amp; the Apply engine</h2>
+  <h3>actions.html — the report</h3>
+  <p>Deterministic <code>render.py</code> (same spirit as <code>visualize.py</code>), styled to match <code>profile.html</code>. Sections: <b>Headline</b> (top "do now", profile freshness, network flag) · <b>Do now / Consider / FYI</b> action cards (rationale, evidence quote, quantified impact, source+freshness, Apply affordance) · <b>Context-health savings</b> (before/after token estimate) · <b>Considered but not recommended</b> (the ledger) · <b>Fine print</b> (nondeterminism, sampling caveat, index dates).</p>
+  <h3>Apply engine — opt-in, per action</h3>
+  <table>
+    <tr><th>apply.kind</th><th>What "Apply" does</th><th>Used by</th><th>Safety</th></tr>
+    <tr><td><code>run_command</code></td><td>Show the exact install command, run on yes.</td><td>install_skill, add_mcp, add_plugin</td><td>Command shown before it runs.</td></tr>
+    <tr><td><code>edit_file</code></td><td>Capture context / trim CLAUDE.md / memory — present a <b>diff</b>, back up, apply on yes.</td><td>capture_context, trim, author (memory form)</td><td>Diff + backup; reversible.</td></tr>
+    <tr><td><code>scaffold_skill</code></td><td>Hand the drafted spec to <code>skill-creator</code>.</td><td>author_asset (skill/command form)</td><td>skill-creator owns authoring + review.</td></tr>
+    <tr><td><code>handoff_skill</code></td><td>Config change via the owning skill.</td><td>automate_hook → update-config; cut_permission_friction → fewer-permission-prompts; merge_sharpen → skill-creator (description optimize)</td><td>Owning skill enforces settings safety.</td></tr>
+    <tr><td><code>advisory</code></td><td>Nothing to apply — it's guidance.</td><td>adopt_practice, stop_antipattern</td><td>n/a</td></tr>
+  </table>
+  <div class="callout good"><div class="lbl">Reversibility</div>"Remove a capability" = <b>archive/unlink</b>, never destroy. The report names exactly what's affected; anything used in a sampled session is flagged before removal is offered.</div>
+</section>
+
+<!-- 12 -->
+<section id="rails">
+  <h2 class="s">12 · Honesty rails &amp; exec principles</h2>
+  <div class="grid2">
+    <div class="callout"><div class="lbl">Evidence or it doesn't ship</div>Every action cites the profile signal (and verified quote) it rests on. The synthesizer drops any candidate that can't re-ground.</div>
+    <div class="callout bad"><div class="lbl">Never invent a capability</div>Recommend only skills/MCP/plugins in the index or confirmed live. A gap with no match → "consider building one," never a hallucinated name.</div>
+    <div class="callout good"><div class="lbl">Quantify impact <span style="font-weight:400">(exec lens)</span></div>Lead with the number when the data allows — "saves ~1.3k always-on tokens/prompt," "avoids re-explaining X (seen in 6/15 sessions)." Use the real <code>context_health</code> counts; stay qualitative only when you must.</div>
+    <div class="callout good"><div class="lbl">Lightest viable artifact <span style="font-weight:400">(exec lens)</span></div>Prefer a CLAUDE.md line over a command over a skill. Don't build a skill when a one-liner does the job — matches your own "simplicity first" rule.</div>
+    <div class="callout"><div class="lbl">Correlational, not causal</div>Habit/best-practice findings say "often alongside…," never "caused." Each carries a counted evidence string.</div>
+    <div class="callout warn"><div class="lbl">Freshness &amp; sampling shown</div>Research actions show source + dates. "Unused" means "unused in the sample" — never "globally dead."</div>
+    <div class="callout good"><div class="lbl">Consent twice</div>Network use consented up front; each apply consented individually. Read-only, non-networked by default.</div>
+    <div class="callout bad"><div class="lbl">Reversible &amp; stale-aware</div>Archive/unlink, never delete; back up + diff before editing context files. If the profile is stale, offer to refresh first.</div>
+  </div>
+</section>
+
+<!-- 13 -->
+<section id="layout">
+  <h2 class="s">13 · File layout</h2>
+<pre>skills/recommend-actions/
+├── SKILL.md                      <b>orchestration: gate → load → fan-out → synth → render → apply</b>
+├── README.md
+├── prompts/
+│   ├── capability_scout.md       ① bring in skills/MCP/plugins for gaps
+│   ├── config_doctor.md          ② trim · fill · automate the config surface
+│   ├── pattern_smith.md          ③ recurring pattern → lightest viable asset
+│   ├── practice_coach.md         ④ behavioral signals → adopt/stop, cited
+│   └── action_synthesizer.md     ⑤ dedupe · resolve form · prioritize · enforce contract
+├── reference/
+│   ├── capabilities_index.json   skills + MCP + plugins (built fresh by build_indexes.py)
+│   ├── best_practices.json       Anthropic/OpenAI guidance, dated
+│   └── schema.md                 candidate + actions.json contracts
+└── scripts/
+    ├── load_profile.py           resolve slug, validate, freshness, split lanes   + tests
+    ├── build_indexes.py          offline/networked index builder (fresh)          + tests
+    ├── render.py                 actions.json → actions.html + console            + tests
+    └── apply.py                  per-action primitives (backup, diff, archive/unlink)  + tests</pre>
+  <p class="footnote">Lives beside <code>skills/profile-builder/</code>, symlinked into <code>~/.claude/skills/</code> the same way. Stdlib-only Python + pytest, matching the project.</p>
+</section>
+
+<!-- 14 -->
+<section id="priorart">
+  <h2 class="s">14 · Prior art carried forward (ideas, not code)</h2>
+  <p>We build production-clean. From the hackathon prototypes we carry <b>concepts</b>, and lift a file only if it is already production-grade and fits — a build-time call, not a foundational assumption.</p>
+  <table>
+    <tr><th>From</th><th>Idea we keep</th><th>Code reuse?</th></tr>
+    <tr><td><code>profile-builder/</code> (production)</td><td>Consent gate, plumbing/LLM split, evidence verification, <code>visualize.py</code> HTML approach, slug encoding.</td><td><b>Follow the patterns;</b> reuse the slug-encoding helper.</td></tr>
+    <tr><td>coach <code>skill_recommender.md</code></td><td>The LLM-ranks-a-curated-index prompt structure + honesty-rail wording.</td><td>Reference for <code>capability_scout.md</code>; rewritten for production.</td></tr>
+    <tr><td>coach <code>build_skills_index.py</code></td><td>Offline-build, graceful-degradation, <code>built_at</code> stamping.</td><td>Reference; <code>build_indexes.py</code> written fresh (now skills + MCP + plugins).</td></tr>
+    <tr><td>coach <code>habit_catalog.json</code></td><td>The catalog-of-habits concept + correlational framing.</td><td>Informs <code>best_practices.json</code>; rebuilt with sources + dates.</td></tr>
+    <tr><td><code>recommend-skills/</code></td><td>Gap-driven framing ("the gaps are the point").</td><td>None. Optional later cleanup (retire/redirect) — out of scope here.</td></tr>
+  </table>
+</section>
+
+<!-- 15 -->
+<section id="testing">
+  <h2 class="s">15 · Testing strategy</h2>
+  <ul>
+    <li><b>Deterministic plumbing → pytest</b>: <code>load_profile.py</code> (slug, missing/stale profile, lane split), <code>render.py</code> (stable HTML/console from a fixed actions.json), <code>apply.py</code> (backup, diff, archive/unlink round-trip — and refusal to delete), <code>build_indexes.py</code> (graceful source-drop, <code>built_at</code>).</li>
+    <li><b>Fixtures:</b> a profile-builder-v2 fixture for a developer <i>and</i> a non-developer (the accountant fixture profile-builder already uses) so audience-neutrality is tested.</li>
+    <li><b>Contract tests:</b> every <code>action</code> has non-empty <code>evidence</code>; no acquire action lacks a <code>source.url</code>/index ref; every removal is <code>reversible:true</code>; every research action has a <code>freshness</code>.</li>
+    <li><b>LLM steps</b> are nondeterministic — not asserted on exact text; snapshot the <i>shape</i> of a synthesizer output against a recorded fixture.</li>
+  </ul>
+</section>
+
+<!-- 16 -->
+<section id="risks">
+  <h2 class="s">16 · Risks &amp; open questions</h2>
+  <table>
+    <tr><th>Item</th><th>Note</th></tr>
+    <tr><td>Index acquisition</td><td>Marketplace/docs must be fetchable &amp; stably structured. <code>build_indexes.py</code> degrades gracefully and logs drops.</td></tr>
+    <tr><td>best_practices sourcing</td><td>Anthropic/OpenAI URLs drift. Store <code>source_url</code> + <code>built_at</code>; live-verify on use; never assert a practice from memory.</td></tr>
+    <tr><td>config-doctor breadth</td><td>One agent owns trim+fill+automate. Coherent (all "tune the config") and local/cheap, but watch prompt size; split only if it gets unwieldy.</td></tr>
+    <tr><td><b>Open Q:</b> config-edit apply path</td><td>CLAUDE.md/memory edits direct via <code>apply.py</code> (diff+backup), or always handoff to <code>update-config</code>? Leaning: <b>direct for plain context files, handoff for settings.json.</b></td></tr>
+    <tr><td><b>Open Q:</b> capture-context destination</td><td>When promoting a re-explained fact, prefer repo <code>CLAUDE.md</code> (team-shared) or personal memory? Leaning: <b>repo CLAUDE.md if it's project-specific, memory if it's about the user.</b></td></tr>
+    <tr><td><b>Feedback to sensor:</b> model-usage signal</td><td>Model/tier recommendations need a per-session model signal profile-builder doesn't capture. Propose adding it later.</td></tr>
+  </table>
+</section>
+
+<!-- 17 -->
+<section id="scope">
+  <h2 class="s">17 · Out of scope (v2+)</h2>
+  <ul>
+    <li>Cross-project recommendations (Phase-1 is current-project-only; so is this).</li>
+    <li>Phase-3 live session monitoring — <code>actions.json</code> is its input, but the monitor is a separate spec.</li>
+    <li>Team/repo config sharing, model/tier selection (needs a new sensor signal), scheduled-run suggestions.</li>
+    <li>Deep per-family verification pipelines (Topology C) as a "thorough mode."</li>
+    <li>Auto-apply of any action; auto-refresh of the indexes (manual rebuild in v1).</li>
+    <li>Embedding/vector retrieval (curated-index + LLM rank stays unless the corpus outgrows a single pass).</li>
+  </ul>
+</section>
+
+<hr>
+<p class="footnote">Draft v2 for review — built-from-scratch posture, four broadened families, five agents. Once you approve (or mark up), next step is the implementation plan (writing-plans), then build. Nothing has been built yet.</p>
+</main>
+</div>
+</body>
+</html>
