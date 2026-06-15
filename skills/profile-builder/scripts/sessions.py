@@ -60,18 +60,40 @@ def discover(cwd, projects_root=None):
 
 # ----------------------------------------------------------------- sampling ---
 
-def sample(manifest, recent=20, tail=15, min_chars=800, seed=0):
-    """Recency-stratified, seeded selection. manifest items need mtime,
-    approx_chars, path. Returns (chosen, report)."""
+def sample(manifest, recent=20, tail=15, min_chars=800, seed=0, analyzable=None):
+    """Recency-stratified, seeded selection that BACKFILLS past non-analyzable
+    sessions so the quota fills with substantive ones (not trivial single-prompt
+    noise). `analyzable(item) -> bool` decides whether a candidate is worth a
+    slot; when omitted, every eligible candidate counts (the original behavior).
+    manifest items need mtime, approx_chars, path. Returns (chosen, report)."""
+    ok = analyzable or (lambda m: True)
     eligible = [m for m in manifest if m["approx_chars"] >= min_chars]
-    # mtime desc, path asc -> fully deterministic ordering for seeded sampling
+    # mtime desc, path asc -> deterministic ordering for seeded selection
     by_recent = sorted(eligible, key=lambda m: (-m["mtime"], m["path"]))
-    recent_set = by_recent[:recent]
-    tail_pool = by_recent[recent:]
-    if len(tail_pool) <= tail:
-        tail_set = list(tail_pool)
-    else:
-        tail_set = random.Random(seed).sample(tail_pool, tail)
+
+    trivial = 0
+    recent_set, i = [], 0
+    while i < len(by_recent) and len(recent_set) < recent:
+        m = by_recent[i]; i += 1
+        if ok(m):
+            recent_set.append(m)
+        else:
+            trivial += 1
+
+    tail_pool = by_recent[i:]
+    order = list(range(len(tail_pool)))
+    random.Random(seed).shuffle(order)          # seeded => reproducible tail
+    tail_set, trivial_tail = [], 0
+    for idx in order:
+        if len(tail_set) >= tail:
+            break
+        m = tail_pool[idx]
+        if ok(m):
+            tail_set.append(m)
+        else:
+            trivial_tail += 1
+    trivial += trivial_tail
+
     chosen = recent_set + tail_set
     report = {
         "total": len(manifest),
@@ -79,7 +101,8 @@ def sample(manifest, recent=20, tail=15, min_chars=800, seed=0):
         "skipped_short": len(manifest) - len(eligible),
         "recent_taken": len(recent_set),
         "tail_sampled": len(tail_set),
-        "tail_skipped": max(0, len(tail_pool) - len(tail_set)),
+        "tail_skipped": max(0, len(tail_pool) - len(tail_set) - trivial_tail),
+        "trivial_skipped": trivial,
         "seed": seed,
     }
     return chosen, report
@@ -300,15 +323,20 @@ def condense(path):
     text, truncated = _truncate(text)
     facts["duration_seconds"] = (
         int(round(max(ts_seen) - min(ts_seen))) if len(ts_seen) >= 2 else 0)
+    # Trivial = no genuine prompt, almost no content, OR a single prompt that
+    # produced no durable work. The last case (one user turn, no artifacts and no
+    # commits) is a throwaway Q&A/scenario that reveals little about how someone
+    # works, so it's excluded from profiling. A one-shot run that DID produce
+    # artifacts (a headless/automated run) still counts.
+    work_done = sum(facts["artifacts"].values()) > 0 or facts["git_commits"] > 0
+    too_short = (n_user < 1) or (len(text) < 200) or (n_user < 2 and not work_done)
     return {
         "session_id": os.path.splitext(os.path.basename(path))[0],
         "path": path,
         "condensed_text": text,
         "approx_tokens": (len(text) + 3) // 4,
         "n_user_msgs": n_user,
-        # Trivial = no genuine user prompt at all, or almost no content. A single
-        # substantial prompt (e.g. a headless/programmatic run) is analyzable.
-        "too_short": n_user < 1 or len(text) < 200,
+        "too_short": too_short,
         "truncated": truncated,
         "first_prompt": first_prompt or "",
         "facts": facts,
@@ -325,7 +353,10 @@ def _stat(path):
 
 
 def prepare(cwd, recent=20, sample=15, min_chars=800, seed=0, projects_root=None):
-    """discover -> sample -> condense -> scrub. Returns {slug, report, sessions}."""
+    """discover -> sample (analyzable-aware, backfilling) -> condense -> scrub.
+    Returns {slug, report, sessions}. Condensing is cheap, so selection condenses
+    candidates lazily and skips trivial single-prompt sessions, filling the quota
+    with substantive ones. Chosen sessions are condensed exactly once (cached)."""
     slug, roots, files = discover(cwd, projects_root=projects_root)
     manifest = []
     for f in files:
@@ -333,16 +364,23 @@ def prepare(cwd, recent=20, sample=15, min_chars=800, seed=0, projects_root=None
         manifest.append({"path": f,
                          "session_id": os.path.splitext(os.path.basename(f))[0],
                          "mtime": mtime, "approx_chars": nchars})
-    chosen, report = globals()["sample"](manifest, recent, sample, min_chars, seed)
+
+    cache, failures = {}, {"n": 0}
+
+    def _analyzable(m):
+        p = m["path"]
+        if p not in cache:
+            cache[p] = condense(p)
+            if cache[p] is None:
+                failures["n"] += 1
+        c = cache[p]
+        return (c is not None) and (not c["too_short"])
+
+    chosen, report = globals()["sample"](manifest, recent, sample, min_chars, seed,
+                                         analyzable=_analyzable)
     report["worktrees"] = roots
-    sessions_out, failures = [], 0
-    for m in chosen:
-        c = condense(m["path"])
-        if c is None:
-            failures += 1
-            continue
-        sessions_out.append(c)
-    report["condense_failures"] = failures
+    report["condense_failures"] = failures["n"]
+    sessions_out = [cache[m["path"]] for m in chosen]   # chosen are analyzable + cached
     report["too_short_chosen"] = sum(1 for s in sessions_out if s["too_short"])
     return {"slug": slug, "report": report, "sessions": sessions_out}
 

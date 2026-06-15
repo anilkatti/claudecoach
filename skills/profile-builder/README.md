@@ -75,6 +75,13 @@ python skills/profile-builder/scripts/context_health.py "$PWD"
 - Sampling's tail is seeded; the recent set is mtime-based, so re-running after
   using the project re-selects. LLM steps are nondeterministic (each profile's
   `disclaimer` says so). See `reference/limitations.md` for the full coverage register.
+- **Trivial single-prompt sessions are skipped.** A lone prompt that produced no
+  durable work (no files written, no commits) reveals little about how someone
+  works, so selection backfills past it to fill the sample with substantive
+  sessions; a one-shot run that *did* produce artifacts is kept. The count shows
+  as `trivial_skipped` in the report.
+- **Re-running** a project that already has a profile asks whether to overwrite
+  (fresh) or update (refresh, reconciling against the existing profile).
 - `context_health` and `gaps` are **signals for a downstream coach**, not
   recommendations from this skill.
 - Tests: `python -m pytest skills/profile-builder/scripts/`.

@@ -30,10 +30,28 @@ Tell the user, and wait for a yes:
 > only condensed, scrubbed text and verbatim-verified quotes reach the
 > Haiku/Opus subagents. Proceed?"
 
+## Step 0.5 — If a profile already exists, ask overwrite vs update
+Encode the cwd to the slug and check whether `~/.claude/profiles/<slug>/` already
+holds a profile. If it does, ask the user (read its `generated_at` for the date):
+> "A profile for this project already exists (generated <date>). Should I
+> **overwrite** it from scratch, or **update** it — refresh, building on the
+> existing profile?"
+
+Remember the answer:
+- **overwrite** — ignore the old profile; generate fresh (Steps 1–8 as normal).
+- **update** — generate fresh observations as normal, but in Step 6 hand the
+  existing profiles to the synthesizer so stable signals carry forward, new ones
+  are added, and contradicted ones are dropped.
+
+If no profile exists, this is a first run — proceed normally.
+
 ## Step 1 — Prepare sessions (plumbing)
 Run: `python scripts/sessions.py prepare --cwd "<project cwd>" --recent 20 --sample 15 --seed 0`
 Parse the stdout JSON: `{slug, report, sessions[]}`. Show the `report` to the user
-(totals / sampled / skipped / too_short / truncated) — never hide truncation.
+(totals / sampled / skipped / trivial_skipped / too_short / truncated) — never hide
+truncation. `trivial_skipped` counts single-prompt sessions that did no durable
+work (no files written, no commits); selection backfills past them so the sample
+fills with substantive sessions. All returned `sessions[]` are analyzable.
 
 ## Step 2 — Inventory (plumbing)
 Run: `python scripts/inventory.py "<project cwd>"` → `owned_capabilities` JSON.
@@ -75,9 +93,12 @@ substituting `{{SLUG}}`, `{{PROVENANCE_JSON}}` (the `report` + model tiers +
 `extraction_failures` + `quotes_verified`/`quotes_dropped` + `truncated_sessions`),
 `{{INVENTORY_JSON}}`, `{{CONTEXT_HEALTH_JSON}}`, `{{CONTEXT}}` (contents of
 `~/.claude/CLAUDE.md`, `<repo>/CLAUDE.md`, and the project memory index at
-`~/.claude/projects/<slug>/memory/MEMORY.md` if present — else empty), and
-`{{OBSERVATIONS_JSON}}` (the verified array from Steps 3–5). Have the subagent
-read `reference/schema.md` so field names match exactly. Split its output on
+`~/.claude/projects/<slug>/memory/MEMORY.md` if present — else empty),
+`{{OBSERVATIONS_JSON}}` (the verified array from Steps 3–5), and
+`{{EXISTING_PROFILE}}` — in **update** mode the current `project.profile.json` +
+`user.profile.json` so the synthesizer reconciles old and new; in
+**overwrite**/first-run mode pass an empty value. Have the subagent read
+`reference/schema.md` so field names match exactly. Split its output on
 `===PROJECT===` / `===USER===`, stripping any ```json fences around each block.
 
 ## Step 7 — Write outputs

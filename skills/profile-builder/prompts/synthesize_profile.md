@@ -31,6 +31,11 @@ The person may be in any profession (engineer, analyst, accountant, writer, …)
   `observed_in.note`). Do not generalize beyond it.
 - Copy the provided provenance into each profile's `provenance`; keep the
   `disclaimer`. Be honest in `summary` about a thin sample.
+- **Update mode:** if `existing_profile` is non-empty, this is a refresh, not a
+  rewrite. Carry forward entries the new evidence still supports, add newly-seen
+  ones, and drop or down-weight entries the new sessions contradict or no longer
+  show. Re-verify against the new observations — never keep a claim just because
+  it was there before. If `existing_profile` is empty, synthesize fresh.
 
 ## Output format
 
@@ -50,3 +55,4 @@ owned_capabilities: {{INVENTORY_JSON}}
 config_health (copy verbatim into user.profile.context_health): {{CONTEXT_HEALTH_JSON}}
 context_files (global CLAUDE.md, repo CLAUDE.md, project MEMORY.md; may be empty): {{CONTEXT}}
 per_session_observations (evidence quotes are pre-verified): {{OBSERVATIONS_JSON}}
+existing_profile (empty unless updating; reconcile against it per the update-mode rule): {{EXISTING_PROFILE}}

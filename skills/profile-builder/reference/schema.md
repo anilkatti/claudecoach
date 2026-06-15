@@ -97,8 +97,9 @@ Copied verbatim from `scripts/context_health.py`. **Raw signals only — no verd
 
 ```json
 {"sessions_total": 0, "sessions_sampled": 0, "sampling": "recency-stratified",
- "seed": 0, "skipped_short": 0, "too_short_chosen": 0, "truncated_sessions": 0,
- "extraction_failures": 0, "quotes_verified": 0, "quotes_dropped": 0,
+ "seed": 0, "skipped_short": 0, "trivial_skipped": 0, "too_short_chosen": 0,
+ "truncated_sessions": 0, "extraction_failures": 0,
+ "quotes_verified": 0, "quotes_dropped": 0,
  "models": {"per_session": "claude-haiku-4-5-20251001", "synthesis": "claude-opus-4-8"}}
 ```
 

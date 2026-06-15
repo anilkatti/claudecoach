@@ -80,6 +80,25 @@ def test_sample_fewer_than_quota_takes_all():
     assert report["tail_sampled"] == 0
 
 
+def test_sample_backfills_past_nonanalyzable_to_fill_quota():
+    # When the most-recent sessions are trivial, the recent quota backfills with
+    # the next analyzable ones rather than wasting slots on noise.
+    trivial = {"s00", "s01", "s02"}   # s00 is newest
+    chosen, report = sessions.sample(
+        _mani(10), recent=3, tail=0, min_chars=800, seed=0,
+        analyzable=lambda m: m["session_id"] not in trivial)
+    assert [c["session_id"] for c in chosen] == ["s03", "s04", "s05"]
+    assert report["recent_taken"] == 3
+    assert report["trivial_skipped"] == 3
+
+
+def test_sample_default_predicate_keeps_everything_analyzable():
+    # No predicate => old behavior: nothing is treated as trivial.
+    chosen, report = sessions.sample(_mani(5), recent=20, tail=15, min_chars=800, seed=0)
+    assert len(chosen) == 5
+    assert report["trivial_skipped"] == 0
+
+
 # ============================================================ scrubbing ======
 
 @pytest.mark.parametrize("secret,kind", [
@@ -165,15 +184,34 @@ def test_condense_marks_trivial_session_too_short(tmp_path):
     assert out["too_short"] is True
 
 
-def test_condense_single_substantial_prompt_is_usable(tmp_path):
-    # A single genuine prompt + real work is analyzable — turn count is NOT the
-    # criterion (programmatic/headless runs have one user turn but rich content).
+def test_condense_single_prompt_without_work_is_skipped(tmp_path):
+    # A lone prompt that produced no durable work (no files written, no commits)
+    # reveals little about HOW someone works — no steering, no iteration, no
+    # verification — so it's excluded from profiling.
     big = "Reconcile the general ledger to the subledger for FUND_ALPHA. " * 40
     entries = [
         {"type": "user", "message": {"role": "user", "content": [{"type": "text", "text": big}]}},
-        {"type": "assistant", "message": {"role": "assistant", "content": [{"type": "text", "text": "Working on it."}]}},
+        {"type": "assistant", "message": {"role": "assistant", "content": [{"type": "text", "text": "Here's how I'd approach it."}]}},
     ]
     p = tmp_path / "single.jsonl"
+    with open(p, "w") as fh:
+        for e in entries:
+            fh.write(_json.dumps(e) + "\n")
+    out = sessions.condense(str(p))
+    assert out["n_user_msgs"] == 1
+    assert out["too_short"] is True
+
+
+def test_condense_single_prompt_with_real_work_is_kept(tmp_path):
+    # But a one-shot/headless run that actually produced artifacts IS analyzable
+    # — turn count alone is not the criterion.
+    big = "Reconcile the ledger and write the report. " * 40
+    entries = [
+        {"type": "user", "message": {"role": "user", "content": [{"type": "text", "text": big}]}},
+        {"type": "assistant", "message": {"role": "assistant", "content": [
+            {"type": "tool_use", "name": "Write", "input": {"file_path": "report.md", "content": "x" * 100}}]}},
+    ]
+    p = tmp_path / "single_work.jsonl"
     with open(p, "w") as fh:
         for e in entries:
             fh.write(_json.dumps(e) + "\n")
@@ -230,6 +268,35 @@ def test_prepare_end_to_end(tmp_path):
     assert out["report"]["total"] == 2
     assert len(out["sessions"]) == 2
     assert all("condensed_text" in s and "too_short" in s for s in out["sessions"])
+
+
+def test_prepare_excludes_trivial_single_prompt(tmp_path):
+    # A trivial single-prompt session must not occupy a sample slot; a
+    # substantive multi-turn session with work is kept.
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    proj_root = tmp_path / "projects"
+    slug = sessions.encode_cwd(str(repo))
+    d = proj_root / slug
+    d.mkdir(parents=True)
+    sub = (_json.dumps({"type": "user", "message": {"role": "user", "content": [
+                {"type": "text", "text": "build a feature " * 80}]}}) + "\n"
+           + _json.dumps({"type": "assistant", "message": {"role": "assistant", "content": [
+                {"type": "tool_use", "name": "Write", "input": {"file_path": "a.py", "content": "x" * 200}}]}}) + "\n"
+           + _json.dumps({"type": "user", "message": {"role": "user", "content": [
+                {"type": "text", "text": "now verify it " * 80}]}}) + "\n")
+    (d / "sub.jsonl").write_text(sub)
+    triv = _json.dumps({"type": "user", "message": {"role": "user", "content": [
+        {"type": "text", "text": "just one quick question here " * 40}]}}) + "\n"
+    (d / "triv.jsonl").write_text(triv)
+
+    out = sessions.prepare(str(repo), recent=20, sample=15, min_chars=800, seed=0,
+                           projects_root=str(proj_root))
+
+    ids = [s["session_id"] for s in out["sessions"]]
+    assert "sub" in ids
+    assert "triv" not in ids
+    assert out["report"]["trivial_skipped"] >= 1
 
 
 # ============================================================ inventory ======
