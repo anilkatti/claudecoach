@@ -75,3 +75,29 @@ def test_render_html_escapes_user_content():
 def test_render_html_handles_empty_profiles():
     html = viz.render_html({}, {})
     assert "<html" in html and "</html>" in html
+
+
+def test_quote_keeps_embedded_quotes():
+    # The real bug: a quote containing an inner " was cut at the first inner quote.
+    assert viz._quote('session:a "He said "hi" and left"') == 'He said "hi" and left'
+
+
+def test_quote_passthrough_when_no_quotes():
+    raw = "context_health.duplicate_capabilities frontend-design [personal, plugin]"
+    assert viz._quote(raw) == raw
+
+
+def test_evidence_drops_junk_and_marker_quotes():
+    items = [
+        'session:a "So "',                                   # 2 chars after strip -> drop
+        'session:b "[…profile-builder truncated 900 chars…]"',  # marker -> drop
+        'session:c "a real, illustrative quote"',            # keep
+    ]
+    out = viz._evidence(items)
+    assert "a real, illustrative quote" in out
+    assert ">So <" not in out
+    assert "truncated" not in out
+
+
+def test_evidence_empty_when_all_junk():
+    assert viz._evidence(['session:a "So "']) == ""

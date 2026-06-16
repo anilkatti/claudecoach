@@ -29,22 +29,40 @@ def _num(n):
         return _esc(n)
 
 
+_TRUNC_MARKER = "profile-builder truncated"
+
+
 def _quote(ev):
-    """An evidence string like `session:abc "quote"` -> just the quoted part if present."""
+    """An evidence string like `session:abc "quote"` -> the quoted text. Uses the
+    first and last double-quote so a quote with INNER quotes survives intact."""
     s = str(ev or "")
-    if '"' in s:
-        parts = s.split('"')
-        if len(parts) >= 3:
-            return parts[1]
+    i, j = s.find('"'), s.rfind('"')
+    if i != -1 and j > i:
+        return s[i + 1:j]
     return s
 
 
-def _evidence(items, limit=3):
-    items = [i for i in (items or []) if str(i).strip()][:limit]
-    if not items:
+def _usable_quote(ev):
+    """The extracted quote if it's a real illustration, else '' — drops empties,
+    sub-3-char fragments, and any leaked profile-builder truncation marker."""
+    q = _quote(ev).strip()
+    if len(q) < 3 or _TRUNC_MARKER in q:
         return ""
-    quotes = "".join('<blockquote>%s</blockquote>' % _esc(_quote(i)) for i in items)
-    return '<div class="evidence">%s</div>' % quotes
+    return q
+
+
+def _evidence(items, limit=3):
+    quotes = []
+    for it in items or []:
+        q = _usable_quote(it)
+        if q:
+            quotes.append(q)
+        if len(quotes) >= limit:
+            break
+    if not quotes:
+        return ""
+    blocks = "".join('<blockquote>%s</blockquote>' % _esc(q) for q in quotes)
+    return '<div class="evidence">%s</div>' % blocks
 
 
 def _weighted_tags(items):
