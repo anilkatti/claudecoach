@@ -69,58 +69,74 @@ def render_console(doc):
     return "\n".join(lines)
 
 
+LANE_KIND = {"do_now": "now", "consider": "consider", "fyi": "fyi"}
+
+
 def _card(a):
     src = a.get("source", {})
-    fresh = f'<span class="src">{_esc(src.get("freshness",""))}</span>' if src.get("freshness") else ""
+    parts = []
+    if src.get("freshness"):
+        parts.append(_esc(src.get("freshness")))
     u = src.get("url") or ""
-    url = f' · <a href="{_esc(u)}">source</a>' if u.startswith(SAFE_URL_SCHEMES) else ""
+    if u.startswith(SAFE_URL_SCHEMES):
+        parts.append(f'<a href="{_esc(u)}">source</a>')
+    source_html = " · ".join(parts)
     imp = a.get("impact_estimate", {})
-    impact = (f'<span class="impact">{_esc(imp.get("value"))} {_esc(imp.get("kind",""))}'
-              f' — {_esc(imp.get("basis",""))}</span>' if imp.get("kind") not in (None, "qualitative") else "")
-    ev = "".join(f'<li><b>{_esc(x.get("signal",""))}</b>: {_esc(x.get("quote",""))}</li>'
-                 for x in a.get("evidence", []))
+    impact_html = (coach_theme.impact_figure(imp.get("value"),
+                   f'{_esc(imp.get("kind",""))} · {_esc(imp.get("basis",""))}')
+                   if imp.get("kind") not in (None, "qualitative") else "")
+    ev = ""
+    for x in a.get("evidence", []):
+        if x.get("quote"):
+            ev = coach_theme.evidence(x.get("signal", ""), x.get("quote"))
+            break
     apply_b = a.get("apply", {})
-    preview = _esc(apply_b.get("preview", ""))
-    return f"""
-    <div class="card action {_esc(a.get('family',''))}">
-      <div class="t">{_esc(a.get('title',''))}
-        <span class="meta">{_esc(a.get('family',''))} · {_esc(a.get('effort',''))} effort{url}</span></div>
-      <p>{_esc(a.get('rationale',''))} {impact} {fresh}</p>
-      <ul class="ev">{ev}</ul>
-      <details><summary>Apply ({_esc(apply_b.get('kind',''))})</summary><pre>{preview}</pre></details>
-    </div>"""
+    return coach_theme.action_card(
+        a.get("title", ""), a.get("family", ""), a.get("effort", ""),
+        _esc(a.get("rationale", "")),
+        impact_html=impact_html, source_html=source_html, evidence_html=ev,
+        apply_kind=apply_b.get("kind", ""), apply_preview=apply_b.get("preview", ""))
 
 
 def render_html(doc):
     g = group_by_priority(doc.get("actions", []))
     pr = doc.get("profile_ref", {})
     idx = doc.get("indexes", {})
-    hero = (
-        '<header class="hero reveal">'
-        '<p class="eyebrow">ClaudeCoach · recommendations</p>'
-        '<h1>What would make Claude work better here</h1>'
-        f'<p class="meta">{_esc(doc.get("project_slug",""))}</p></header>')
-    intro = coach_theme.callout(BANNER_HTML)
-    meta = (f'<p class="fine">profile {_esc(pr.get("generated_at","?"))} · '
-            f'stale={pr.get("stale")} · sessions sampled {_esc(pr.get("sessions_sampled","?"))} · '
-            f'network used {doc.get("consent",{}).get("network_used")} · '
-            f'capabilities {_esc(idx.get("capabilities_fetched_at","?"))}</p>')
-    body_sections = []
-    for i, p in enumerate(PRIORITIES):
+    slug = doc.get("project_slug", "")
+    chips = "".join([
+        coach_theme.chip("profile %s" % _esc(pr.get("generated_at", "?"))),
+        coach_theme.chip("sessions sampled", strong=_esc(pr.get("sessions_sampled", "?"))),
+        coach_theme.chip("network used %s" % doc.get("consent", {}).get("network_used")),
+        coach_theme.chip("capabilities %s" % _esc(idx.get("capabilities_fetched_at", "?"))),
+    ])
+    blocks = [
+        coach_theme.hero("ClaudeCoach · recommendations", "What would make Claude work better here",
+                         "Evidence-cited, opt-in actions drawn from your profile.", chips),
+        coach_theme.callout(BANNER_HTML),
+    ]
+    any_action = False
+    for p in PRIORITIES:
         if not g[p]:
             continue
-        body_sections.append(coach_theme.section(
-            PRIORITY_LABEL[p], "".join(_card(a) for a in g[p]), idx=i))
-    if not any(g[p] for p in PRIORITIES):
-        body_sections.append("<p>No actions — your setup looks well tuned for this project.</p>")
+        any_action = True
+        n = len(g[p])
+        blocks.append(coach_theme.priority_lane(
+            PRIORITY_LABEL[p], LANE_KIND[p], "%d action%s" % (n, "" if n == 1 else "s")))
+        blocks.append("".join(_card(a) for a in g[p]))
+    if not any_action:
+        blocks.append("<p>No actions — your setup looks well tuned for this project.</p>")
     nr = doc.get("not_recommended", [])
-    nr_items = ("".join(f'<li>{_esc(i.get("considered",""))} — '
-                        f'{_esc(i.get("why_dropped",""))}</li>' for i in nr)
+    nr_items = ("".join('<li style="margin-bottom:8px;color:var(--ink-2)">%s — %s</li>'
+                        % (_esc(i.get("considered", "")), _esc(i.get("why_dropped", ""))) for i in nr)
                 if nr else "<li>none</li>")
-    nr_section = coach_theme.section("Considered but not recommended", f"<ul>{nr_items}</ul>")
-    footer = f'<footer>{_esc(doc.get("disclaimer",""))}</footer>'
-    body = hero + intro + meta + "".join(body_sections) + nr_section + footer
-    return coach_theme.page(f"recommend-actions — {doc.get('project_slug','')}", body)
+    blocks.append(coach_theme.section(
+        "·", "Considered but not recommended",
+        "<ul style='list-style:none;padding:0;font-size:13.5px'>%s</ul>" % nr_items))
+    return coach_theme.page(
+        "Recommendations — ClaudeCoach",
+        coach_theme.masthead("recommendations", slug),
+        "".join(blocks),
+        coach_theme.footer("", _esc(doc.get("disclaimer", ""))))
 
 
 def main():

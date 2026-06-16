@@ -52,22 +52,6 @@ def test_console_shows_titles_evidence_and_source():
     assert "no source found" in txt                         # not_recommended ledger shown
 
 
-def test_html_has_sections_and_escapes():
-    html = render.render_html(DOC)
-    for needle in ("Do now", "Consider", "Capture your test command",
-                   "the test command is pytest -q", "built_at 2026-06-10",
-                   "Considered but not recommended", "nondeterministic"):
-        assert needle in html
-    # HTML-escape angle brackets in user-derived text
-    assert "<script>" not in render.render_html({**DOC, "actions": [
-        {**DOC["actions"][0], "title": "<script>x</script>"}]})
-
-
-def test_handles_empty_actions():
-    html = render.render_html({**DOC, "actions": [], "not_recommended": []})
-    assert "No actions" in html
-
-
 def test_cli_writes_html(tmp_path):
     import json
     import subprocess
@@ -80,39 +64,45 @@ def test_cli_writes_html(tmp_path):
     assert "Do now" in out.read_text()
 
 
+def test_html_uses_new_design_system():
+    html = render.render_html(DOC)
+    assert "--accent:#bd4d2a" in html and "Inter" in html and "Fraunces" in html
+    assert 'class="mast"' in html and "ClaudeCoach" in html
+
+
+def test_html_has_lanes_cards_and_banner():
+    html = render.render_html(DOC)
+    assert 'class="pri now"' in html and "Do now" in html          # priority lane
+    assert 'class="acard"' in html                                  # action card
+    assert "var(--c-config)" in html or "var(--c-acquire)" in html  # family dot
+    assert "Capture your test command" in html
+    assert "the test command is pytest -q" in html                  # evidence quote
+    assert "built_at 2026-06-10" in html                            # source freshness
+    assert "nothing has been changed" in html and "/perform-actions" in html  # callout
+    assert "capabilities 2026-06-10" in html                        # meta text preserved
+    assert "Considered but not recommended" in html
+
+
+def test_html_escapes_and_handles_empty():
+    safe = render.render_html({**DOC, "actions": [
+        {**DOC["actions"][0], "title": "<script>x</script>"}]})
+    assert "<script>x</script>" not in safe
+    assert "No actions" in render.render_html({**DOC, "actions": [], "not_recommended": []})
+
+
 def test_html_drops_dangerous_url_scheme():
     doc = {**DOC, "actions": [{**DOC["actions"][1],
         "source": {"kind": "live_web", "ref": "", "url": "javascript:alert(1)", "freshness": ""}}]}
-    out = render.render_html(doc)
-    assert "javascript:alert(1)" not in out  # dangerous scheme never becomes a link
+    assert "javascript:alert(1)" not in render.render_html(doc)
 
 
 def test_impact_value_none_is_not_literal_none():
     doc = {**DOC, "actions": [{**DOC["actions"][0],
         "impact_estimate": {"kind": "tokens_saved", "value": None, "basis": "b"}}]}
-    out = render.render_html(doc)
-    assert "None tokens_saved" not in out  # None coerced to '', not the string 'None'
-
-
-def test_html_shows_capabilities_fetched_at():
-    html = render.render_html(DOC)
-    assert "capabilities 2026-06-10" in html
-
-
-def test_html_has_review_banner_and_next_step():
-    html = render.render_html(DOC)
-    assert "review" in html.lower()
-    assert "nothing has been changed" in html.lower()
-    assert "/perform-actions" in html
+    assert "None tokens_saved" not in render.render_html(doc)
 
 
 def test_console_has_review_banner():
     txt = render.render_console(DOC)
     assert "/perform-actions" in txt
     assert "review" in txt.lower()
-
-
-def test_html_uses_shared_theme():
-    html = render.render_html(DOC)
-    assert "--paper:#f5f0e8" in html       # shared token -> shared module in use
-    assert "Fraunces" in html
