@@ -101,3 +101,21 @@ def test_evidence_drops_junk_and_marker_quotes():
 
 def test_evidence_empty_when_all_junk():
     assert viz._evidence(['session:a "So "']) == ""
+
+
+def test_render_uses_shared_theme():
+    html = viz.render_html(PROJECT, USER)
+    # --acquire exists ONLY in coach_theme.STYLE, not the old inline _TEMPLATE,
+    # so this fails before the refactor and passes after.
+    assert "--acquire:#3d6fb3" in html
+    assert "Fraunces" in html
+
+
+def test_setup_section_has_no_plus_more_tail():
+    many = {**USER, "context_health": {**USER["context_health"],
+            "unused_capabilities": [{"name": f"cap{i}", "kind": "skills",
+                                     "source": "personal"} for i in range(15)]}}
+    html = viz.render_html({}, many)
+    assert "more" not in html.split("capabilities owned but unused")[1][:40]  # no "+N more"
+    assert "cap14" in html                # full list rendered (in the collapsible details)
+    assert "owned but unused" in html
