@@ -12,19 +12,23 @@ ClaudeCoach does four things, in order of maturity:
 
 1. **Sense** — build an evidence-verified profile of the user + project from their
    own Claude Code session history, installed capabilities, and config surface.
-2. **Recommend** — which skills / MCP servers / plugins / GitHub agents to install.
-3. **Reorganize** — cut config bloat and contradictions (trim CLAUDE.md/memory,
-   capture recurring context, automate repeated steps).
+   *(built: `/profile-builder`)*
+2. **Recommend** — which skills / MCP servers / plugins / GitHub agents to install,
+   plus config and habit changes. *(built: `/recommend-actions`)*
+3. **Reorganize / act** — apply the recommendations: install capabilities, trim
+   config bloat, capture recurring context, and coherently rewrite CLAUDE.md/memory
+   — each change reversible and opt-in. *(built: `/perform-actions`)*
 4. **Monitor** *(future phase)* — watch sessions live to coach better Claude usage.
 
 Everything runs **locally and privately** — sessions are read on-machine,
 secrets scrubbed before any model sees them, and nothing is uploaded.
 
-## Architecture: sensor → coach
+## Architecture: sensor → coach → executor
 
-The product splits cleanly into a **sensor that collects and a coach that judges**.
-Keep that separation — the sensor must never recommend, and the coach reads only
-what the sensor wrote.
+The product splits cleanly into a **sensor that collects, a coach that judges, and
+an executor that acts**. Keep that separation — the sensor never recommends, the
+coach reads only what the sensor wrote and never mutates files, and the executor only
+applies what the coach proposed and the user approved.
 
 ```
   past sessions ─┐
@@ -34,11 +38,18 @@ what the sensor wrote.
               ~/.claude/profiles/<slug>/{project,user}.profile.json + profile.md
                           │
                           ▼
-              /recommend-actions  (COACH: judge, recommend)
+              /recommend-actions  (COACH: judge, recommend — never mutate)
                    5 Opus subagents (4 blind specialists + 1 synthesizer)
                           │
                           ▼
               actions.html + actions.json  (prioritized, evidence-cited, opt-in)
+                          │
+                          ▼
+              /perform-actions  (EXECUTOR: apply, don't decide)
+                   a doer agent per apply.kind · per-action consent · reversible
+                          │
+                          ▼
+              applied changes (installs · reversible archives · CLAUDE.md/memory rewrites)
 ```
 
 **Models interpret; Python plumbs.** The Python scripts only do deterministic
@@ -51,6 +62,9 @@ interpretation into Python or plumbing into a prompt.
 - **`skills/`** — **production work. This is the real codebase.**
   - `profile-builder/` — Phase 1, the sensor.
   - `recommend-actions/` — Phase 2, the coach.
+  - `perform-actions/` — Phase 3, the executor: applies approved actions via a doer
+    agent per `apply.kind`; owns the reversible file primitives (`apply.py`) and the
+    coherent-per-file context-reorganizer.
 - **`docs/superpowers/`** — design specs (`specs/`) and implementation plans
   (`plans/`) for production skills. Write the spec/plan before building.
 - **`hackathon/`** — **throwaway prototypes. Prior art / ideas, NOT a code
@@ -68,9 +82,10 @@ These hold across every production skill — preserve them when editing:
   for a yes before touching session data.
 - **Collect, don't judge** (profile-builder). `gaps`, `friction_signals`,
   `context_health` are candidate signals *with evidence* — never verdicts.
-- **Opt-in apply** (recommend-actions). By default the coach **changes nothing**;
-  applying a recommendation is an explicit, separate step. Live web lookups are
-  also opt-in — declining keeps the run fully offline.
+- **Opt-in apply** (perform-actions). The coach **changes nothing**; applying is a
+  separate, explicitly-consented skill — per-action, and reversible (archive not
+  delete; backup before edit; diff shown first). Live web lookups in recommend-actions
+  are also opt-in — declining keeps the run fully offline.
 - **Evidence-verified.** Claims are backed by verbatim, verified quotes from the
   source, not paraphrase or recall.
 - **Audience-neutral.** Never assume the user writes code. Treat all artifacts as
