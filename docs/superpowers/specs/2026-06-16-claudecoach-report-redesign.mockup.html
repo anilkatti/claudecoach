@@ -1,0 +1,239 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>ClaudeCoach — design system mockup</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#faf8f5; --surface:#fff; --surface-2:#f5f2ec; --inset:#f7f4ee;
+  --ink:#1b1a17; --ink-2:#565049; --ink-3:#928b80;
+  --line:#ece7dc; --line-2:#ddd6c7;
+  --accent:#bd4d2a; --accent-deep:#9c3f22; --positive:#3c6b56;
+  --c-acquire:#3a6ea5; --c-config:#b5852f; --c-author:#7d5ba6; --c-behavior:#3c6b56;
+  --sans:'Inter',ui-sans-serif,system-ui,sans-serif;
+  --serif:'Fraunces',Georgia,serif; --mono:'IBM Plex Mono',ui-monospace,monospace;
+  --r:12px; --r-sm:8px;
+  --sh-sm:0 1px 2px rgba(28,26,23,.05);
+  --sh:0 1px 2px rgba(28,26,23,.04),0 14px 30px -20px rgba(60,40,20,.30);
+  --maxw:1000px;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);color:var(--ink);font-family:var(--sans);font-size:15px;line-height:1.55;
+  -webkit-font-smoothing:antialiased;letter-spacing:-0.006em}
+.wrap{max-width:var(--maxw);margin:0 auto;padding:0 28px}
+
+/* ---- masthead (shared product chrome) ---- */
+.mast{position:sticky;top:0;z-index:5;background:rgba(250,248,245,.86);backdrop-filter:saturate(1.4) blur(8px);
+  border-bottom:1px solid var(--line)}
+.mast .wrap{display:flex;align-items:center;justify-content:space-between;height:54px}
+.brand{display:flex;align-items:center;gap:9px;font-weight:600;letter-spacing:-.01em}
+.brand .mark{width:18px;height:18px;border-radius:5px;background:conic-gradient(from 210deg,var(--accent),#e08a4f,var(--accent));
+  box-shadow:inset 0 0 0 1.5px rgba(255,255,255,.35)}
+.brand b{font-weight:600} .brand span{color:var(--ink-3);font-weight:500}
+.crumbs{font-size:13px;color:var(--ink-3);display:flex;gap:8px;align-items:center}
+.crumbs .here{color:var(--ink);font-weight:500}
+.crumbs code{font-family:var(--mono);font-size:12px;background:var(--surface-2);padding:2px 7px;border-radius:6px}
+
+/* ---- hero ---- */
+.hero{padding:56px 0 30px;border-bottom:1px solid var(--line)}
+.kicker{font-size:12px;font-weight:600;letter-spacing:.14em;text-transform:uppercase;color:var(--accent-deep)}
+h1{font-family:var(--serif);font-weight:500;font-size:clamp(2.1rem,4.5vw,3rem);line-height:1.04;
+  letter-spacing:-.02em;margin:.34em 0 .28em}
+.standfirst{font-size:1.06rem;color:var(--ink-2);max-width:60ch}
+.chiprow{display:flex;flex-wrap:wrap;gap:8px;margin-top:22px}
+.chip{display:inline-flex;align-items:center;gap:7px;font-size:12.5px;color:var(--ink-2);
+  background:var(--surface);border:1px solid var(--line-2);border-radius:999px;padding:5px 12px}
+.chip b{font-weight:600;color:var(--ink)}
+.chip .dot{width:6px;height:6px;border-radius:50%;background:var(--accent)}
+
+/* ---- section ---- */
+section{padding:38px 0}
+section + section{border-top:1px solid var(--line)}
+.sec-head{display:flex;align-items:baseline;gap:14px;margin-bottom:22px}
+.sec-head .num{font-family:var(--mono);font-size:12px;color:var(--accent);padding-top:3px}
+.sec-head h2{font-family:var(--serif);font-weight:500;font-size:1.5rem;letter-spacing:-.015em}
+.sec-head .eb{margin-left:auto;font-size:12px;color:var(--ink-3);text-transform:uppercase;letter-spacing:.1em}
+
+/* ---- cards / grids ---- */
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:18px}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:22px 24px;box-shadow:var(--sh-sm)}
+.card .lede{color:var(--ink-2);font-size:.96rem}
+.card h3.minor{font-size:12px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-3);margin-bottom:12px}
+
+/* signals grid */
+.sigs{display:grid;grid-template-columns:1fr 1fr;gap:1px;background:var(--line);border:1px solid var(--line);border-radius:var(--r);overflow:hidden}
+.sig{background:var(--surface);padding:16px 18px}
+.sig .k{font-size:11px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-3)}
+.sig .v{font-family:var(--serif);font-size:1.18rem;color:var(--ink);margin:3px 0 4px;letter-spacing:-.01em}
+.sig .d{font-size:13px;color:var(--ink-2)}
+.sig .q{font-size:12.5px;color:var(--ink-3);border-left:2px solid var(--line-2);padding-left:9px;margin-top:9px;font-style:italic}
+
+/* weight bars */
+.bars{display:flex;flex-direction:column;gap:11px}
+.bar-row{display:grid;grid-template-columns:minmax(180px,260px) 1fr 34px;gap:14px;align-items:center}
+.bar-row .lab{font-size:13.5px;font-weight:500}
+.bar{height:7px;background:var(--surface-2);border-radius:999px;overflow:hidden}
+.bar>i{display:block;height:100%;background:linear-gradient(90deg,var(--accent),#d9743f);border-radius:999px}
+.bar-row .pct{font-family:var(--mono);font-size:12px;color:var(--ink-3);text-align:right}
+
+/* ---- actions: priority lanes + action cards ---- */
+.lane-head{display:flex;align-items:center;gap:11px;margin:6px 0 14px}
+.pri{font-size:11.5px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;padding:4px 11px;border-radius:999px}
+.pri.now{background:var(--accent);color:#fff}
+.pri.consider{background:transparent;color:var(--accent-deep);border:1.5px solid var(--line-2)}
+.lane-head .count{font-size:12.5px;color:var(--ink-3)}
+.acard{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:18px 20px;box-shadow:var(--sh-sm);margin-bottom:12px}
+.acard-top{display:flex;justify-content:space-between;align-items:flex-start;gap:14px}
+.acard h3{font-size:1.04rem;font-weight:600;letter-spacing:-.01em;line-height:1.3}
+.acard .tags{display:flex;gap:7px;flex-shrink:0;align-items:center}
+.tag{font-size:11.5px;font-weight:500;padding:3px 9px;border-radius:999px;border:1px solid var(--line-2);color:var(--ink-2);white-space:nowrap}
+.tag.fam{display:inline-flex;align-items:center;gap:6px}
+.tag.fam .fdot{width:7px;height:7px;border-radius:50%}
+.acard .rat{font-size:13.5px;color:var(--ink-2);margin:10px 0 0;max-width:72ch}
+.acard .foot{display:flex;align-items:center;gap:14px;margin-top:13px;flex-wrap:wrap}
+.impact{display:inline-flex;align-items:baseline;gap:6px;background:var(--inset);border:1px solid var(--line);border-radius:8px;padding:5px 10px}
+.impact b{font-family:var(--serif);font-size:1.05rem;color:var(--positive)} .impact span{font-size:12px;color:var(--ink-3)}
+.src{font-size:12px;color:var(--ink-3)} .src a{color:var(--accent-deep);text-decoration:none;border-bottom:1px solid var(--line-2)}
+.ev{margin-top:11px;font-size:12.5px;color:var(--ink-2);border-left:2px solid var(--line-2);padding:2px 0 2px 11px;font-style:italic}
+.ev .who{font-style:normal;font-family:var(--mono);font-size:11px;color:var(--ink-3);display:block;margin-bottom:2px}
+details.apply{margin-top:12px;border-top:1px dashed var(--line-2);padding-top:10px}
+details.apply summary{cursor:pointer;font-size:12.5px;font-weight:500;color:var(--accent-deep);list-style:none}
+details.apply summary::before{content:"▸ ";color:var(--ink-3)}
+details.apply[open] summary::before{content:"▾ "}
+details.apply pre{font-family:var(--mono);font-size:12px;background:var(--inset);border:1px solid var(--line);
+  border-radius:8px;padding:11px 13px;margin-top:9px;white-space:pre-wrap;color:var(--ink-2)}
+
+/* stats */
+.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:1px;background:var(--line);border:1px solid var(--line);border-radius:var(--r);overflow:hidden}
+.stat{background:var(--surface);padding:18px 16px;text-align:center}
+.stat .n{font-family:var(--serif);font-size:1.9rem;color:var(--accent-deep);line-height:1}
+.stat .c{font-size:12px;color:var(--ink-3);margin-top:5px}
+
+.callout{display:flex;gap:13px;background:var(--surface);border:1px solid var(--line);border-left:4px solid var(--accent);
+  border-radius:var(--r);padding:15px 18px;margin:8px 0 26px;box-shadow:var(--sh-sm)}
+.callout .ic{font-size:18px}
+.callout p{font-size:13.5px;color:var(--ink-2)} .callout b{color:var(--ink)}
+.callout code{font-family:var(--mono);font-size:12px;background:var(--surface-2);padding:1px 6px;border-radius:5px;color:var(--accent-deep)}
+
+.divider{height:8px;background:var(--surface-2);border-top:1px solid var(--line);border-bottom:1px solid var(--line);margin-top:40px}
+footer{padding:30px 0 60px;color:var(--ink-3);font-size:12.5px;border-top:1px solid var(--line);margin-top:10px}
+</style></head>
+<body>
+
+<!-- ===== PROFILE SCREEN ===== -->
+<header class="mast"><div class="wrap">
+  <div class="brand"><span class="mark"></span><b>ClaudeCoach</b><span>/ profile</span></div>
+  <div class="crumbs"><span class="here">Profile</span> · <code>cadel-mono-repo</code></div>
+</div></header>
+
+<div class="wrap">
+  <div class="hero">
+    <div class="kicker">Your Claude profile</div>
+    <h1>Software work</h1>
+    <p class="standfirst">An AI-powered enterprise platform for document analysis and accounts-payable automation — most sampled work is engineering on the AP and extraction pipelines, with a tail of finance-agent and config work.</p>
+    <div class="chiprow">
+      <span class="chip"><span class="dot"></span><b>45</b> of 231 sessions read</span>
+      <span class="chip"><b>67</b> quotes verified</span>
+      <span class="chip"><b>34</b> unverifiable, dropped</span>
+      <span class="chip">generated Jun 16, 2026</span>
+    </div>
+  </div>
+
+  <section>
+    <div class="sec-head"><span class="num">01</span><h2>How you work</h2><span class="eb">behavioral signals</span></div>
+    <div class="sigs">
+      <div class="sig"><div class="k">Prompting</div><div class="v">Directive</div><div class="d">Mostly directive, with exploratory turns on design &amp; debugging; rarely terse.</div><div class="q">“Based on that, can we show what's relevant for purchase orders and contracts?”</div></div>
+      <div class="sig"><div class="k">Verification</div><div class="v">Closes the loop</div><div class="d">Tests, live reloads, and data cross-checks — verification is the close, not an afterthought.</div><div class="q">“Both originally-failing tests now pass. ✅”</div></div>
+      <div class="sig"><div class="k">Planning</div><div class="v">Up-front</div><div class="d">Plans before non-trivial work; skips it for small ops/config tasks.</div></div>
+      <div class="sig"><div class="k">Steering</div><div class="v">Strong</div><div class="d">Pushes back on framing and corrects course mid-implementation; more passive on routine ops.</div></div>
+    </div>
+  </section>
+
+  <section>
+    <div class="sec-head"><span class="num">02</span><h2>What the work is</h2><span class="eb">task patterns, by weight</span></div>
+    <div class="bars">
+      <div class="bar-row"><span class="lab">Bug diagnosis &amp; root-cause fix</span><div class="bar"><i style="width:93%"></i></div><span class="pct">.93</span></div>
+      <div class="bar-row"><span class="lab">Workflow deployment &amp; smoke testing</span><div class="bar"><i style="width:91%"></i></div><span class="pct">.91</span></div>
+      <div class="bar-row"><span class="lab">Feature implementation (UI + rules)</span><div class="bar"><i style="width:86%"></i></div><span class="pct">.86</span></div>
+      <div class="bar-row"><span class="lab">Evaluation / A-B benchmarking</span><div class="bar"><i style="width:82%"></i></div><span class="pct">.82</span></div>
+      <div class="bar-row"><span class="lab">Month-end close &amp; GL reconciliation</span><div class="bar"><i style="width:78%"></i></div><span class="pct">.78</span></div>
+    </div>
+  </section>
+
+  <section>
+    <div class="sec-head"><span class="num">03</span><h2>Your Claude setup</h2><span class="eb">context-health signals</span></div>
+    <div class="stats">
+      <div class="stat"><div class="n">6,764</div><div class="c">tokens load every session</div></div>
+      <div class="stat"><div class="n">8</div><div class="c">hooks firing</div></div>
+      <div class="stat"><div class="n">1</div><div class="c">MCP server</div></div>
+      <div class="stat"><div class="n">53</div><div class="c">capabilities unused here</div></div>
+    </div>
+  </section>
+</div>
+
+<div class="divider"></div>
+
+<!-- ===== ACTIONS SCREEN ===== -->
+<header class="mast"><div class="wrap">
+  <div class="brand"><span class="mark"></span><b>ClaudeCoach</b><span>/ recommendations</span></div>
+  <div class="crumbs"><span class="here">Recommendations</span> · <code>cadel-mono-repo</code></div>
+</div></header>
+
+<div class="wrap">
+  <div class="hero">
+    <div class="kicker">ClaudeCoach · recommendations</div>
+    <h1>What would make Claude work better here</h1>
+    <p class="standfirst">Evidence-cited, opt-in actions drawn from your profile — acquire capabilities, tune config, and adopt habits.</p>
+  </div>
+
+  <section style="padding-top:26px">
+    <div class="callout"><span class="ic">📋</span><p><b>These are potential actions for you to review — nothing has been changed yet.</b> Next, run <code>/perform-actions</code> and Claude will walk you through each one so you can pick and choose which to apply.</p></div>
+
+    <div class="lane-head"><span class="pri now">Do now</span><span class="count">3 actions</span></div>
+
+    <div class="acard">
+      <div class="acard-top">
+        <h3>Capture the eval-cache confounding gotcha into memory</h3>
+        <div class="tags"><span class="tag fam"><span class="fdot" style="background:var(--c-config)"></span>config</span><span class="tag">low effort</span></div>
+      </div>
+      <p class="rat">Eval comparisons looked like breakthroughs until cached-vs-fresh artifacts were caught, forcing a mid-run halt. A one-line eval-hygiene note (flush <code style="font-family:var(--mono);font-size:12px">llm_cache:*</code> + delete the row before every run) stops re-discovering this mid-experiment.</p>
+      <div class="foot">
+        <span class="impact"><b>1</b><span>friction signal · conf 0.55</span></span>
+        <span class="src">built Jun 16</span>
+      </div>
+      <div class="ev"><span class="who">session c0aa9067</span>“Kill this”</div>
+      <details class="apply"><summary>Apply — edit_file</summary><pre>+ Eval-comparison hygiene: before EVERY A/B run, clear BOTH cache layers
+  (flush llm_cache:* AND DELETE FROM accos_documents WHERE document_id=&lt;id&gt;).</pre></details>
+    </div>
+
+    <div class="acard">
+      <div class="acard-top">
+        <h3>Install the Promptfoo Agent Skill for cache-safe LLM eval / A-B benchmarking</h3>
+        <div class="tags"><span class="tag fam"><span class="fdot" style="background:var(--c-acquire)"></span>acquire</span><span class="tag">low effort</span></div>
+      </div>
+      <p class="rat">You repeatedly run A/B model comparisons on extraction quality; one was nearly mis-read as a breakthrough from cache artifacts. Promptfoo ships a built-in <code style="font-family:var(--mono);font-size:12px">--no-cache</code> / <code style="font-family:var(--mono);font-size:12px">--repeat</code> switch and a Claude Code plugin — you own no eval harness today.</p>
+      <div class="foot">
+        <span class="impact"><b>2</b><span>re-explains avoided</span></span>
+        <span class="src">verified Jun 16 · <a href="#">promptfoo.dev</a></span>
+      </div>
+      <div class="ev"><span class="who">project.task_archetypes[3]</span>“3.5-flash got one extra doc through the pipeline. Per-doc quality is mixed”</div>
+      <details class="apply"><summary>Apply — run_command</summary><pre>/plugin marketplace add promptfoo/promptfoo
+/plugin install promptfoo@promptfoo</pre></details>
+    </div>
+
+    <div class="lane-head" style="margin-top:24px"><span class="pri consider">Consider</span><span class="count">4 actions</span></div>
+    <div class="acard">
+      <div class="acard-top">
+        <h3>Archive the personal copy of frontend-design (repo says it doesn't apply here)</h3>
+        <div class="tags"><span class="tag fam"><span class="fdot" style="background:var(--c-config)"></span>config</span><span class="tag">low effort</span></div>
+      </div>
+      <p class="rat">frontend-design is duplicated across personal and plugin sources, and the repo CLAUDE.md states the personal style does not apply inside this repo. Removing the personal copy cuts a duplicate trigger surface — a reversible archive, not a delete.</p>
+      <div class="foot"><span class="src">built Jun 16 · reversible</span></div>
+      <div class="ev"><span class="who">context_health.duplicate_capabilities</span>frontend-design — personal · plugin</div>
+    </div>
+  </section>
+</div>
+
+<footer><div class="wrap"><b style="font-weight:600;color:var(--ink-2)">ClaudeCoach</b> &nbsp;·&nbsp; Read by Haiku, synthesized by Opus · evidence-verified but nondeterministic · local &amp; private.</div></footer>
+</body></html>
