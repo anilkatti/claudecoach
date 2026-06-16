@@ -8,7 +8,7 @@ DOC = {
     "schema_version": 1, "generated_at": "2026-06-15T00:00:00+00:00",
     "project_slug": "-Volumes-x",
     "profile_ref": {"generated_at": "2026-06-01T00:00:00+00:00", "stale": False, "sessions_sampled": 12},
-    "indexes": {"capabilities_built_at": "2026-06-10", "best_practices_built_at": "2026-06-10"},
+    "indexes": {"capabilities_fetched_at": "2026-06-10", "best_practices_built_at": "2026-06-10"},
     "consent": {"network_used": True},
     "actions": [
         {"id": "capture-coa", "family": "config", "action_type": "capture_context",
@@ -92,3 +92,8 @@ def test_impact_value_none_is_not_literal_none():
         "impact_estimate": {"kind": "tokens_saved", "value": None, "basis": "b"}}]}
     out = render.render_html(doc)
     assert "None tokens_saved" not in out  # None coerced to '', not the string 'None'
+
+
+def test_html_shows_capabilities_fetched_at():
+    html = render.render_html(DOC)
+    assert "capabilities 2026-06-10" in html

@@ -33,7 +33,7 @@ def test_load_then_render_then_apply_round_trip(tmp_path):
     actions = {"schema_version": 1, "generated_at": "2026-06-15T00:00:00+00:00",
                "project_slug": loaded["slug"],
                "profile_ref": {"generated_at": PROJECT["generated_at"], "stale": False, "sessions_sampled": 5},
-               "indexes": {"capabilities_built_at": "seed", "best_practices_built_at": "seed"},
+               "indexes": {"capabilities_fetched_at": "none", "best_practices_built_at": "seed"},
                "consent": {"network_used": False},
                "actions": [{"id": "cap", "family": "config", "action_type": "capture_context",
                             "priority": "do_now", "title": "Capture test cmd", "rationale": "r",

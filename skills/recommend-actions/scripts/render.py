@@ -116,7 +116,7 @@ a{{color:#7aa2f7}} pre{{background:#0f1115;padding:10px;border-radius:8px;overfl
 <h1>What would make Claude work better here</h1>
 <p class="fine">profile {_esc(pr.get('generated_at','?'))} · stale={pr.get('stale')} ·
 sessions sampled {_esc(pr.get('sessions_sampled','?'))} · network used {doc.get('consent',{}).get('network_used')} ·
-indexes built {_esc(idx.get('capabilities_built_at','?'))}</p>
+capabilities {_esc(idx.get('capabilities_fetched_at','?'))}</p>
 {''.join(sections)}
 <h2>Considered but not recommended</h2><ul>{nr_html}</ul>
 <p class="fine">{_esc(doc.get('disclaimer',''))}</p>
