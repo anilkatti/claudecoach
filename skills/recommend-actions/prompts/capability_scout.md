@@ -28,6 +28,15 @@ recommend only what is relevant to *this* user, not to survey everything that ex
     acquiring new capabilities needs a live lookup, and you must not guess one.
 - Prefer MCP for a live-data/tool gap, a skill for a procedure, a plugin for a bundle.
 
+## Surface strong, well-known options — not only literal gap-fillers
+Within the profile's scope, you may also recommend a **widely-used, well-known,
+well-maintained** capability the person lacks even when no gap is spelled out — e.g.
+an established skill / MCP / plugin for a high-weight `domain` or `task_archetype`
+they work in repeatedly. The rails are unchanged: it must be **scoped to this
+profile**, the person must **not already own it** (dedupe against `owned_capabilities`),
+and you must **fetch and verify its URL** before emitting it — never an invented name
+or an unverified URL. Prefer established, maintained options over obscure ones.
+
 ## Evidence rule
 Every candidate's `evidence[]` must cite a profile signal path and a verbatim quote
 copied from that signal's evidence. No quote → omit the candidate.

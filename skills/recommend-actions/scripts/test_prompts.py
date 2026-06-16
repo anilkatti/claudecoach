@@ -40,3 +40,23 @@ def test_synthesizer_prompt_has_candidates_and_actions_schema():
     assert "{{PROFILE_JSON}}" in text
     assert "not_recommended" in text
     assert "do_now" in text and "consider" in text and "fyi" in text
+
+
+def test_capability_scout_surfaces_wellknown_options():
+    text = _read("capability_scout")
+    assert "well-known" in text.lower()
+    assert "verify" in text.lower()                      # URL rail still present
+    assert "never" in text.lower() and "invent" in text.lower()
+
+
+def test_config_doctor_has_skill_reorg_lens():
+    text = _read("config_doctor")
+    assert "reorganize" in text.lower()
+    assert "owned_capabilities" in text
+    assert "archive" in text.lower()
+
+
+def test_synthesizer_balances_families_in_priority():
+    text = _read("action_synthesizer")
+    assert "crowd out" in text.lower()
+    assert "acquire" in text.lower()
