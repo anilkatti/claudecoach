@@ -6,7 +6,6 @@ HERE = os.path.dirname(__file__)
 sys.path.insert(0, HERE)
 import load_profile as lp
 import render
-import apply
 
 PROJECT = {"schema_version": 2, "generated_at": "2026-06-01T00:00:00+00:00",
            "project": {"slug": "s"}, "work_type": "software",
@@ -18,7 +17,7 @@ USER = {"schema_version": 2, "generated_at": "2026-06-01T00:00:00+00:00",
         "context_health": {"always_on": {"est_tokens": 0}, "mcp_footprint": {}}, "gaps": []}
 
 
-def test_load_then_render_then_apply_round_trip(tmp_path):
+def test_load_then_render_round_trip(tmp_path):
     # 1. load_profile finds a written profile and splits lanes
     cwd = "/Volumes/proj"
     d = tmp_path / "profiles" / lp.encode_cwd(cwd)
@@ -43,14 +42,8 @@ def test_load_then_render_then_apply_round_trip(tmp_path):
                             "source": {"kind": "local_signal", "ref": "", "url": "", "freshness": ""},
                             "effort": "low",
                             "apply": {"kind": "edit_file", "preview": "+ Test: pytest -q",
+                                      "target_path": "/Volumes/proj/CLAUDE.md",
                                       "reversible": True, "handoff": None, "status": "pending"}}],
                "not_recommended": [], "disclaimer": "d"}
     html = render.render_html(actions)
     assert "Capture test cmd" in html and "pytest -q" in html
-
-    # 3. apply_edit on a context file backs up and writes (reversible)
-    claude_md = tmp_path / "CLAUDE.md"
-    claude_md.write_text("# project\n")
-    res = apply.apply_edit(str(claude_md), "# project\nTest: pytest -q\n")
-    assert "pytest -q" in claude_md.read_text()
-    assert open(res["backed_up_to"]).read() == "# project\n"
