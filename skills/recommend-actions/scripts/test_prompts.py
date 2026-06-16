@@ -18,12 +18,20 @@ def test_specialist_prompts_have_lane_placeholder_and_json_output():
         assert "evidence" in text                          # evidence rail present
 
 
-def test_research_prompts_reference_index_and_forbid_invention():
-    for name in ["capability_scout", "practice_coach"]:
-        text = _read(name)
-        assert "{{INDEX_JSON}}" in text, name
-        assert "never" in text.lower() and any(
-            w in text.lower() for w in ("invent", "point to", "cite")), name
+def test_practice_coach_references_index_and_forbids_invention():
+    text = _read("practice_coach")
+    assert "{{INDEX_JSON}}" in text
+    assert "never" in text.lower() and any(
+        w in text.lower() for w in ("invent", "point to", "cite"))
+
+
+def test_capability_scout_is_live_scoped_no_static_index():
+    text = _read("capability_scout")
+    assert "{{INDEX_JSON}}" not in text           # no static catalog anymore
+    assert "{{LANE_JSON}}" in text
+    assert "work_type" in text                     # research is scoped to the profile
+    assert "verify" in text.lower()                # URL-verification rail
+    assert "never" in text.lower() and "invent" in text.lower()
 
 
 def test_synthesizer_prompt_has_candidates_and_actions_schema():

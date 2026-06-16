@@ -72,6 +72,7 @@ def test_freshness_stale():
 def test_split_lanes_has_four_lanes_with_expected_keys():
     lanes = lp.split_lanes(PROJECT, USER)
     assert set(lanes) == {"acquire", "config", "author", "behavior"}
+    assert lanes["acquire"]["work_type"] == "software"
     assert lanes["acquire"]["user_gaps"] == USER["gaps"]
     assert lanes["acquire"]["owned_capabilities"] == USER["owned_capabilities"]
     assert lanes["config"]["context_health"] == USER["context_health"]

@@ -35,5 +35,5 @@ PROFILE_JSON (project + user, for re-grounding):
 CANDIDATES_JSON (array of all four specialists' arrays, concatenated):
 {{CANDIDATES_JSON}}
 
-META_JSON (profile_ref, indexes built_at, consent.network_used, project_slug, generated_at):
+META_JSON (profile_ref, indexes.capabilities_fetched_at + best_practices_built_at, consent.network_used, project_slug, generated_at):
 {{META_JSON}}

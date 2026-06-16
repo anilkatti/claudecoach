@@ -59,6 +59,7 @@ def split_lanes(project, user):
     ch = user.get("context_health", {})
     return {
         "acquire": {
+            "work_type": project.get("work_type", ""),
             "project_gaps": project.get("gaps", []),
             "user_gaps": user.get("gaps", []),
             "task_archetypes": project.get("task_archetypes", []),

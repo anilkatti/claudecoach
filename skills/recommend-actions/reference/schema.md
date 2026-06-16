@@ -10,7 +10,7 @@ and produces `actions.json` + `actions.html` in the same profile directory.
 
 ```json
 {
-  "acquire":  {"project_gaps": [], "user_gaps": [], "task_archetypes": [],
+  "acquire":  {"work_type": "", "project_gaps": [], "user_gaps": [], "task_archetypes": [],
                "domains": [], "tools_and_materials": [],
                "owned_capabilities": {}, "mcp_footprint": {}},
   "config":   {"context_health": {}, "friction_signals": []},
@@ -38,7 +38,7 @@ output of `split_lanes`, not raw profile field names.
   "impact_estimate": {"kind": "tokens_saved | reexplains_avoided | qualitative",
                       "value": 0, "basis": "<provenance: profile number or k-of-n count this came from>"},
   "source": {"kind": "curated_index | live_web | local_signal",
-             "ref": "capabilities_index:<name>", "url": "", "freshness": "built_at <date>"},
+             "ref": "live_web:<name>", "url": "", "freshness": "built_at <date>"},
   "effort": "low | medium | high",
   "apply_hint": {"kind": "run_command | scaffold_skill | edit_file | handoff_skill | archive | advisory",
                  "preview": "<exact command / diff / handoff text>",
@@ -55,7 +55,7 @@ output of `split_lanes`, not raw profile field names.
   "generated_at": "<ISO8601>",
   "project_slug": "<cwd encoded: re.sub('[^a-zA-Z0-9]','-', abspath)>",
   "profile_ref": {"generated_at": "...", "stale": false, "sessions_sampled": 0},
-  "indexes": {"capabilities_built_at": "...", "best_practices_built_at": "..."},
+  "indexes": {"capabilities_fetched_at": "...", "best_practices_built_at": "..."},
   "consent": {"network_used": false},
   "actions": [{
     "id": "capture-coa-context", "family": "config", "action_type": "capture_context",
@@ -66,7 +66,7 @@ output of `split_lanes`, not raw profile field names.
               "handoff": null, "status": "pending | applied | skipped"}
   }],
   "not_recommended": [{"considered": "...", "why_dropped": "superseded by <id> / no source found"}],
-  "disclaimer": "LLM-derived from an evidence-verified but partial sample; nondeterministic; research as fresh as the index build + any live top-up."
+  "disclaimer": "LLM-derived from an evidence-verified but partial sample; nondeterministic; acquire research is a live, profile-scoped lookup cached per project."
 }
 ```
 
@@ -74,14 +74,20 @@ output of `split_lanes`, not raw profile field names.
 (`run_command | scaffold_skill | edit_file | handoff_skill | archive | advisory`); the synthesizer
 resolves each candidate's `apply_hint` into the concrete `apply` block.
 
-## Curated index schemas (written by `build_indexes.py`)
+## Capability cache schema (written by `cache.py`, per project)
 
-`capabilities_index.json`:
+`<profile_dir>/capabilities_cache.json` — capability_scout's verified output, reused
+when the profile is unchanged and the cache is within a 14-day TTL:
 ```json
-{"built_at": "<ISO8601>",
- "capabilities": [{"name": "...", "kind": "skill | mcp | plugin", "source": "...",
-                   "one_liner": "...", "when_to_use": "...", "tags": [], "url": "..."}]}
+{"schema_version": 1, "fetched_at": "<ISO8601>",
+ "profile_generated_at": "<the profile version this was built for>",
+ "network_used": true,
+ "candidates": [/* acquire-family candidate actions, same shape as above */]}
 ```
+`indexes.capabilities_fetched_at` in `actions.json` carries this cache's `fetched_at`
+(or `"live"` when just fetched, or `"none"` when the acquire lane was skipped offline).
+
+## Curated index schemas (written by `build_indexes.py`)
 
 `best_practices.json`:
 ```json

@@ -16,18 +16,22 @@ report matching `profile.html`) + `actions.json` in `~/.claude/profiles/<slug>/`
 ## How it works
 
 ```
-profiles ─▶ load_profile.py ─▶ 4 lanes ─▶ [scout(acquire) · doctor(config) · smith(author) · coach(behavior)] (opus, parallel)
-                                                  │ candidate actions
-                                          action_synthesizer (opus) ─▶ actions.json
-                                                  │
-                                          render.py ─▶ actions.html + console
-                                                  │
-                                          apply loop (per-action consent)
+profiles ─▶ load_profile.py ─▶ 4 lanes ─┬─ doctor(config) · smith(author) · coach(behavior)  (opus, parallel) ─┐
+                                         │                                                                       │
+                                         └─ acquire: cache fresh? ─▶ reuse cache                                │
+                                                                   : capability_scout (opus, live)  ─────────────┤
+                                                                                                                 │ candidate actions
+                                                                                           action_synthesizer (opus) ─▶ actions.json
+                                                                                                                 │
+                                                                                                         render.py ─▶ actions.html + console
+                                                                                                                 │
+                                                                                                         apply loop (per-action consent)
 ```
 
-Research is a repo-shipped curated index (`reference/capabilities_index.json`,
-`reference/best_practices.json`) refreshed offline by `build_indexes.py`, plus
-optional live web top-up at runtime.
+Capability recommendations come from a **live, profile-scoped web lookup** that
+`capability_scout` performs and that is **cached per project** (so re-runs stay
+offline). The **best-practices** index (`reference/best_practices.json`) remains
+repo-shipped, refreshed offline by `build_indexes.py`.
 
 ## Install
 ```sh

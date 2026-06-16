@@ -1,23 +1,17 @@
 #!/usr/bin/env python3
-"""Offline builder for the curated indexes. Pure normalize/merge/stamp functions
-(unit-tested); the network fetch is a thin, intentionally un-unit-tested CLI
-wrapper that degrades gracefully and logs every dropped source — never a silent
-half-built index. NEVER hand-add an entry without a real url/source_url."""
+"""Offline builder for the best-practices index. Pure normalize/merge/stamp
+functions (unit-tested); the network fetch is a thin, intentionally un-unit-tested
+CLI wrapper that degrades gracefully and logs every dropped source — never a silent
+half-built index. NEVER hand-add an entry without a real source_url.
+
+Capabilities are no longer a static index: capability_scout researches them live,
+scoped to the profile, and the result is cached per project (see cache.py)."""
 
 import argparse
 import json
 import sys
 import urllib.request
 from datetime import datetime, timezone
-
-CAP_FIELDS = ("name", "kind", "source", "one_liner", "when_to_use", "tags", "url")
-
-
-def normalize_capability(raw):
-    """Return a clean capability dict, or None if it lacks a name+url to point to."""
-    if not raw.get("name") or not raw.get("url"):
-        return None
-    return {k: raw.get(k, [] if k == "tags" else "") for k in CAP_FIELDS}
 
 
 def normalize_practice(raw):
@@ -52,11 +46,6 @@ def _build(sources, fetch_fn, normalize, dedupe_keys, now_iso, field):
     return {"built_at": now_iso, field: merged, "dropped": dropped}
 
 
-def build_capabilities(sources, fetch_fn, now_iso=None):
-    now = now_iso or datetime.now(timezone.utc).isoformat()
-    return _build(sources, fetch_fn, normalize_capability, ("name", "kind"), now, "capabilities")
-
-
 def build_practices(sources, fetch_fn, now_iso=None):
     now = now_iso or datetime.now(timezone.utc).isoformat()
     return _build(sources, fetch_fn, normalize_practice, ("id",), now, "practices")
@@ -69,19 +58,15 @@ def _fetch_json_url(url):
 
 
 def main():
-    ap = argparse.ArgumentParser(description="Build curated indexes (offline).")
-    ap.add_argument("--capabilities-url", action="append", default=[])
+    ap = argparse.ArgumentParser(description="Build the best-practices index (offline).")
     ap.add_argument("--practices-url", action="append", default=[])
     ap.add_argument("--out-dir", required=True)
     args = ap.parse_args()
-    cap = build_capabilities(args.capabilities_url, _fetch_json_url)
     prac = build_practices(args.practices_url, _fetch_json_url)
-    with open(f"{args.out_dir}/capabilities_index.json", "w") as f:
-        json.dump(cap, f, indent=2)
     with open(f"{args.out_dir}/best_practices.json", "w") as f:
         json.dump(prac, f, indent=2)
-    if cap["dropped"] or prac["dropped"]:
-        sys.stderr.write("DROPPED:\n  " + "\n  ".join(cap["dropped"] + prac["dropped"]) + "\n")
+    if prac["dropped"]:
+        sys.stderr.write("DROPPED:\n  " + "\n  ".join(prac["dropped"]) + "\n")
 
 
 if __name__ == "__main__":
