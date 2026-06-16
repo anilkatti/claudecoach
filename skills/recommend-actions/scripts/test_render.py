@@ -97,3 +97,22 @@ def test_impact_value_none_is_not_literal_none():
 def test_html_shows_capabilities_fetched_at():
     html = render.render_html(DOC)
     assert "capabilities 2026-06-10" in html
+
+
+def test_html_has_review_banner_and_next_step():
+    html = render.render_html(DOC)
+    assert "review" in html.lower()
+    assert "nothing has been changed" in html.lower()
+    assert "/perform-actions" in html
+
+
+def test_console_has_review_banner():
+    txt = render.render_console(DOC)
+    assert "/perform-actions" in txt
+    assert "review" in txt.lower()
+
+
+def test_html_uses_shared_theme():
+    html = render.render_html(DOC)
+    assert "--paper:#f5f0e8" in html       # shared token -> shared module in use
+    assert "Fraunces" in html

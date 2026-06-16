@@ -3,20 +3,26 @@
 The only joiner. Dark theme echoing profile-builder's visualize.py."""
 
 import argparse
-import html
 import json
 import os
 import sys
 import webbrowser
 
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "_shared"))
+import coach_theme  # noqa: E402
+
 PRIORITIES = ["do_now", "consider", "fyi"]
 PRIORITY_LABEL = {"do_now": "Do now", "consider": "Consider", "fyi": "FYI"}
 SAFE_URL_SCHEMES = ("http://", "https://")
 
+BANNER_HTML = ("<strong>These are potential actions for you to review — nothing has been "
+               "changed yet.</strong> Next, run <code>/perform-actions</code>; Claude will "
+               "walk you through each one so you can pick and choose which to apply.")
+BANNER_TEXT = ("These are potential actions for you to review — nothing has been changed yet. "
+               "Next, run /perform-actions; Claude will walk you through each one so you can "
+               "pick and choose which to apply.")
 
-def _esc(x):
-    """HTML-escape, coercing None to '' so a missing field never renders as 'None'."""
-    return html.escape("" if x is None else str(x))
+_esc = coach_theme.esc
 
 
 def group_by_priority(actions):
@@ -36,7 +42,8 @@ def _evidence_lines(action):
 
 def render_console(doc):
     g = group_by_priority(doc.get("actions", []))
-    lines = [f'Recommendations for {doc.get("project_slug","")}',
+    lines = [BANNER_TEXT, "",
+             f'Recommendations for {doc.get("project_slug","")}',
              f'  profile {doc.get("profile_ref",{}).get("generated_at","?")} '
              f'(stale={doc.get("profile_ref",{}).get("stale")})  '
              f'network_used={doc.get("consent",{}).get("network_used")}', ""]
@@ -75,7 +82,7 @@ def _card(a):
     apply_b = a.get("apply", {})
     preview = _esc(apply_b.get("preview", ""))
     return f"""
-    <div class="card {_esc(a.get('family',''))}">
+    <div class="card action {_esc(a.get('family',''))}">
       <div class="t">{_esc(a.get('title',''))}
         <span class="meta">{_esc(a.get('family',''))} · {_esc(a.get('effort',''))} effort{url}</span></div>
       <p>{_esc(a.get('rationale',''))} {impact} {fresh}</p>
@@ -88,39 +95,32 @@ def render_html(doc):
     g = group_by_priority(doc.get("actions", []))
     pr = doc.get("profile_ref", {})
     idx = doc.get("indexes", {})
-    sections = []
-    for p in PRIORITIES:
+    hero = (
+        '<header class="hero reveal">'
+        '<p class="eyebrow">ClaudeCoach · recommendations</p>'
+        '<h1>What would make Claude work better here</h1>'
+        f'<p class="meta">{_esc(doc.get("project_slug",""))}</p></header>')
+    intro = coach_theme.callout(BANNER_HTML)
+    meta = (f'<p class="fine">profile {_esc(pr.get("generated_at","?"))} · '
+            f'stale={pr.get("stale")} · sessions sampled {_esc(pr.get("sessions_sampled","?"))} · '
+            f'network used {doc.get("consent",{}).get("network_used")} · '
+            f'capabilities {_esc(idx.get("capabilities_fetched_at","?"))}</p>')
+    body_sections = []
+    for i, p in enumerate(PRIORITIES):
         if not g[p]:
             continue
-        sections.append(f'<h2>{PRIORITY_LABEL[p]}</h2>' + "".join(_card(a) for a in g[p]))
+        body_sections.append(coach_theme.section(
+            PRIORITY_LABEL[p], "".join(_card(a) for a in g[p]), idx=i))
     if not any(g[p] for p in PRIORITIES):
-        sections.append("<p>No actions — your setup looks well tuned for this project.</p>")
+        body_sections.append("<p>No actions — your setup looks well tuned for this project.</p>")
     nr = doc.get("not_recommended", [])
-    nr_html = ("".join(f'<li>{_esc(i.get("considered",""))} — '
-                       f'{_esc(i.get("why_dropped",""))}</li>' for i in nr)
-               if nr else "<li>none</li>")
-    return f"""<!DOCTYPE html><html><head><meta charset="utf-8">
-<title>recommend-actions — {_esc(doc.get('project_slug',''))}</title>
-<style>
-body{{background:#0f1115;color:#e8eaed;font-family:-apple-system,system-ui,sans-serif;
-max-width:900px;margin:0 auto;padding:32px;line-height:1.6}}
-h1{{font-size:26px}} h2{{border-bottom:1px solid #2a3038;padding-bottom:6px;margin-top:32px}}
-.card{{border:1px solid #2a3038;border-left-width:3px;border-radius:10px;padding:14px 16px;margin:12px 0;background:#161a21}}
-.card.acquire{{border-left-color:#7aa2f7}} .card.config{{border-left-color:#e3b341}}
-.card.author{{border-left-color:#bb9af7}} .card.behavior{{border-left-color:#7ee787}}
-.t{{font-weight:600}} .meta{{color:#9aa4b2;font-weight:400;font-size:13px;margin-left:8px}}
-.ev{{color:#9aa4b2;font-size:13px}} .src,.impact{{color:#7ee787;font-size:12px}}
-a{{color:#7aa2f7}} pre{{background:#0f1115;padding:10px;border-radius:8px;overflow:auto}}
-.fine{{color:#9aa4b2;font-size:12px;margin-top:32px;border-top:1px solid #2a3038;padding-top:12px}}
-</style></head><body>
-<h1>What would make Claude work better here</h1>
-<p class="fine">profile {_esc(pr.get('generated_at','?'))} · stale={pr.get('stale')} ·
-sessions sampled {_esc(pr.get('sessions_sampled','?'))} · network used {doc.get('consent',{}).get('network_used')} ·
-capabilities {_esc(idx.get('capabilities_fetched_at','?'))}</p>
-{''.join(sections)}
-<h2>Considered but not recommended</h2><ul>{nr_html}</ul>
-<p class="fine">{_esc(doc.get('disclaimer',''))}</p>
-</body></html>"""
+    nr_items = ("".join(f'<li>{_esc(i.get("considered",""))} — '
+                        f'{_esc(i.get("why_dropped",""))}</li>' for i in nr)
+                if nr else "<li>none</li>")
+    nr_section = coach_theme.section("Considered but not recommended", f"<ul>{nr_items}</ul>")
+    footer = f'<footer>{_esc(doc.get("disclaimer",""))}</footer>'
+    body = hero + intro + meta + "".join(body_sections) + nr_section + footer
+    return coach_theme.page(f"recommend-actions — {doc.get('project_slug','')}", body)
 
 
 def main():
