@@ -105,7 +105,7 @@ def _friction_cards(user):
         conf = f.get("confidence")
         fig = (coach_theme.impact_figure("%d%%" % round(float(conf) * 100), "confidence")
                if isinstance(conf, (int, float)) else "")
-        foot = '<div class="foot">%s</div>' % fig if fig else ""
+        foot = '<div class="foot" style="margin-top:12px">%s</div>' % fig if fig else ""
         cards.append('<div class="card" style="margin-bottom:12px">'
                      '<p style="font-weight:500">%s</p>%s%s</div>'
                      % (_esc(f.get("pattern")), foot, _first_evidence(f.get("evidence"))))

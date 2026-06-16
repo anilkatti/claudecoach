@@ -1,6 +1,7 @@
 """Tests for the profile HTML visualizer. render_html is pure (dict -> HTML
 string) so it's unit-testable; the browser-open path is a thin I/O wrapper."""
 import os
+import re
 import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
@@ -110,4 +111,4 @@ def test_setup_section_collapsible_unused_no_more_tail():
                                      "source": "personal"} for i in range(15)]}}
     html = viz.render_html({}, many)
     assert "cap14" in html and "owned but unused" in html
-    assert "+1 more" not in html and "+3 more" not in html
+    assert not re.search(r"\+\d+ more", html)   # no truncation tail at all
