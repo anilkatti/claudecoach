@@ -42,6 +42,7 @@ output of `split_lanes`, not raw profile field names.
   "effort": "low | medium | high",
   "apply_hint": {"kind": "run_command | scaffold_skill | edit_file | handoff_skill | archive | advisory",
                  "preview": "<exact command / diff / handoff text>",
+                 "target_path": "<absolute path of the context file — set for edit_file>",
                  "handoff": "skill-creator | update-config | fewer-permission-prompts | null",
                  "reversible": true}
 }
@@ -62,8 +63,8 @@ output of `split_lanes`, not raw profile field names.
     "priority": "do_now | consider | fyi",
     "title": "...", "rationale": "...", "evidence": [/* as above */],
     "impact_estimate": {/* as above */}, "source": {/* as above */}, "effort": "low",
-    "apply": {"kind": "edit_file", "preview": "<diff>", "reversible": true,
-              "handoff": null, "status": "pending | applied | skipped"}
+    "apply": {"kind": "edit_file", "preview": "<diff>", "target_path": "<absolute path — for edit_file>",
+              "reversible": true, "handoff": null, "status": "pending | applied | skipped"}
   }],
   "not_recommended": [{"considered": "...", "why_dropped": "superseded by <id> / no source found"}],
   "disclaimer": "LLM-derived from an evidence-verified but partial sample; nondeterministic; acquire research is a live, profile-scoped lookup cached per project."
@@ -73,6 +74,10 @@ output of `split_lanes`, not raw profile field names.
 `apply.kind` takes the same values as `apply_hint.kind`
 (`run_command | scaffold_skill | edit_file | handoff_skill | archive | advisory`); the synthesizer
 resolves each candidate's `apply_hint` into the concrete `apply` block.
+
+For `edit_file` actions the synthesizer also copies `apply_hint.target_path` into
+`apply.target_path` — the absolute path of the context file (`CLAUDE.md` or a memory
+file) that `/perform-actions`' reorganizer will edit.
 
 ## Capability cache schema (written by `cache.py`, per project)
 
