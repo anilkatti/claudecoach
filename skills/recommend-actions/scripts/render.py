@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """Deterministic renderer: actions.json -> actions.html + a console summary.
-The only joiner. Dark theme echoing profile-builder's visualize.py."""
+The only joiner. Renders via the shared coach_theme (skills/_shared)."""
 
 import argparse
 import json
