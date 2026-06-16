@@ -25,9 +25,10 @@ profiles ─▶ load_profile.py ─▶ 4 lanes ─▶ [scout(acquire) · doctor(
                                           apply loop (per-action consent)
 ```
 
-Research is a repo-shipped curated index (`reference/capabilities_index.json`,
-`reference/best_practices.json`) refreshed offline by `build_indexes.py`, plus
-optional live web top-up at runtime.
+Capability recommendations come from a **live, profile-scoped web lookup** that
+`capability_scout` performs and that is **cached per project** (so re-runs stay
+offline). The **best-practices** index (`reference/best_practices.json`) remains
+repo-shipped, refreshed offline by `build_indexes.py`.
 
 ## Install
 ```sh

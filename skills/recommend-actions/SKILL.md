@@ -16,10 +16,11 @@ synthesizer). Python only does plumbing (load, build indexes, render, apply prim
 ## Step 0 — Consent gate (before any read)
 Tell the user and wait for a yes:
 > "I'll read THIS project's profile that /profile-builder already built (local JSON,
-> already scrubbed), match its gaps against a curated capabilities + best-practices
-> index, and write a recommendations report. By default I change nothing. May I also
-> do **optional live web lookups** to find newer skills and confirm sources? (yes/no —
-> declining keeps the run fully offline.)"
+> already scrubbed), match its signals against a best-practices index, and write a
+> recommendations report. By default I change nothing. Finding new skills/MCP/plugins
+> needs a **one-time live, profile-scoped web lookup** (cached per project afterward,
+> so re-runs stay offline). May I do that live lookup? (yes/no — declining keeps the
+> run fully offline; you'll still get config, authoring, and habit advice.)"
 
 Record `network_used` (true only if they allowed live lookups).
 
@@ -33,29 +34,47 @@ project and **offer to run `/profile-builder` first** — then stop. Otherwise k
 If `freshness.stale` is true (or `age_days` is null), tell the user the profile's date
 and offer to re-run `/profile-builder` before recommending. Proceed only if they want to.
 
-## Step 2 — Fan out the four specialists (parallel, model: opus)
-Read `reference/capabilities_index.json` and `reference/best_practices.json`. Dispatch
-**four subagents in parallel, each with model: opus**, substituting placeholders:
-- `prompts/capability_scout.md` — `{{LANE_JSON}}`=lanes.acquire, `{{INDEX_JSON}}`=capabilities_index.
+## Step 2 — Fan out the specialists (parallel, model: opus)
+Read `reference/best_practices.json`. Dispatch the three **non-acquire** specialists
+in parallel, each **model: opus**, substituting placeholders:
 - `prompts/config_doctor.md` — `{{LANE_JSON}}`=lanes.config.
 - `prompts/pattern_smith.md` — `{{LANE_JSON}}`=lanes.author.
 - `prompts/practice_coach.md` — `{{LANE_JSON}}`=lanes.behavior, `{{INDEX_JSON}}`=best_practices.
 
-If `network_used`, tell the two research agents (scout, coach) they may use WebSearch/
-WebFetch to top-up and **verify** candidates, and must keep `source.url` accurate.
+### Step 2a — Acquire lane (cache-aware, live)
+The acquire lane is sourced live and cached per project. Take the profile's
+`generated_at` from Step 1's `freshness.generated_at`, then run:
+`python scripts/cache.py status "<dir>" --profile-generated-at "<generated_at>"`
+Branch on its JSON:
+- **`fresh: true`** → reuse the cache: read `<dir>/capabilities_cache.json` and use its
+  `candidates` as the acquire candidates. No scout dispatch, no network. Set
+  `capabilities_fetched_at` (for Step 3) to the cache's `fetched_at`.
+- **`fresh: false`** (includes `exists: false`):
+  - If `network_used` → dispatch `prompts/capability_scout.md` (**model: opus**),
+    `{{LANE_JSON}}`=lanes.acquire; tell it live research is enabled and it must
+    WebFetch-verify every URL. Collect its JSON array, write it to a temp file, and
+    persist it: `python scripts/cache.py write "<dir>" <temp.json>
+    --profile-generated-at "<generated_at>" --network-used`. Set
+    `capabilities_fetched_at` to `"live"`.
+  - If **not** `network_used` → if `exists: true`, reuse the stale cache's candidates
+    and warn the user they may be out of date (set `capabilities_fetched_at` to the
+    cache's `fetched_at`); else there are **no acquire candidates** — tell the user
+    acquiring new capabilities needs a live lookup (set `capabilities_fetched_at` to
+    `"none"`).
 
 Collect each agent's JSON array. Strip any surrounding ```json fences before parsing.
 If a result isn't valid JSON, retry that agent once; if it still fails, drop it and
-note the dropped lane to the user. Concatenate the four arrays → `candidates`.
+note the dropped lane to the user. Concatenate the four lanes' arrays → `candidates`.
 
 ## Step 3 — Synthesize (one subagent, model: opus)
 Dispatch `prompts/action_synthesizer.md` with model: opus, substituting:
 - `{{PROFILE_JSON}}` = the project + user profiles (for evidence re-grounding),
 - `{{CANDIDATES_JSON}}` = `candidates`,
 - `{{META_JSON}}` = `{project_slug: slug, generated_at: <now ISO>, profile_ref:
-  {generated_at, stale, sessions_sampled}, indexes: {capabilities_built_at,
-  best_practices_built_at}, consent: {network_used}}` — read `capabilities_built_at` /
-  `best_practices_built_at` from each index file's top-level `built_at` key.
+  {generated_at, stale, sessions_sampled}, indexes: {capabilities_fetched_at: <from
+  Step 2a — the cache's fetched_at, "live", or "none">, best_practices_built_at},
+  consent: {network_used}}` — read `best_practices_built_at` from
+  `reference/best_practices.json`'s top-level `built_at` key.
 Have it read `reference/schema.md` so field names match. Parse its single JSON object
 (strip fences); validate it parses and has `actions`. Write it to `<dir>/actions.json`.
 
