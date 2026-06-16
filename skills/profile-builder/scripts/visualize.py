@@ -51,148 +51,121 @@ def _usable_quote(ev):
     return q
 
 
-def _evidence(items, limit=3):
-    quotes = []
+_SIGNALS = [("prompting", "Prompting"), ("planning", "Planning"),
+            ("verification", "Verification"), ("steering", "Steering"), ("leverage", "Leverage")]
+
+
+def _lead(text):
+    """First sentence of a summary, for the hero standfirst."""
+    t = (text or "").strip()
+    for sep in (". ", "; "):
+        if sep in t:
+            return t.split(sep)[0].strip() + "."
+    return t
+
+
+def _ev_split(ev):
+    """`session:<id> "quote"` -> (who, quote), or None if the quote is junk/empty/marker."""
+    s = str(ev or "")
+    q = _usable_quote(s)
+    if not q:
+        return None
+    i = s.find('"')
+    return (s[:i].strip() if i > 0 else "", q)
+
+
+def _first_evidence(items):
     for it in items or []:
-        q = _usable_quote(it)
-        if q:
-            quotes.append(q)
-        if len(quotes) >= limit:
-            break
-    if not quotes:
-        return ""
-    blocks = "".join('<blockquote>%s</blockquote>' % _esc(q) for q in quotes)
-    return '<div class="evidence">%s</div>' % blocks
+        wq = _ev_split(it)
+        if wq:
+            return coach_theme.evidence(wq[0], wq[1])
+    return ""
 
 
-def _weighted_tags(items):
-    out = []
-    for it in items or []:
-        name = _esc(it.get("name"))
-        w = it.get("weight")
-        try:
-            w = float(w)
-        except (TypeError, ValueError):
-            w = 0.5
-        # weight -> visual weight (size + ink)
-        size = 0.82 + 0.5 * max(0.0, min(1.0, w))
-        op = 0.55 + 0.45 * max(0.0, min(1.0, w))
-        out.append('<span class="wtag" style="font-size:%.2frem;opacity:%.2f">%s</span>'
-                   % (size, op, name))
-    return '<div class="tags">%s</div>' % "".join(out) if out else ""
-
-
-def _section(title, eyebrow, body, idx):
-    return coach_theme.section(title, body, eyebrow=eyebrow, idx=idx)
-
-
-# --- the page -----------------------------------------------------------------
-
-_SIGNAL_LABELS = [
-    ("prompting", "Prompting", "How they phrase requests"),
-    ("planning", "Planning", "Forethought before acting"),
-    ("verification", "Verification", "How they check the result"),
-    ("steering", "Steering", "How they direct Claude"),
-    ("leverage", "Leverage", "Outcome per unit of effort"),
-]
-
-
-def _signals_block(user):
+def _signal_rows(user):
     sigs = user.get("behavioral_signals") or {}
-    cards = []
-    for key, label, blurb in _SIGNAL_LABELS:
+    rows = []
+    for key, label in _SIGNALS:
         s = sigs.get(key) or {}
-        val = s.get("value")
-        if not val:
+        if not s.get("value"):
             continue
-        cards.append(
-            '<div class="sig">'
-            '<span class="sig-k">%s</span>'
-            '<span class="sig-v">%s</span>'
-            '<span class="sig-b">%s</span>%s</div>'
-            % (_esc(label), _esc(val), _esc(blurb), _evidence(s.get("evidence"), 1)))
-    return '<div class="sig-grid">%s</div>' % "".join(cards) if cards else ""
+        q = ""
+        for it in s.get("evidence") or []:
+            wq = _ev_split(it)
+            if wq:
+                q = wq[1]
+                break
+        rows.append({"k": label, "v": s.get("value"), "q": q})
+    return rows
 
 
-def _friction_block(user):
-    fr = user.get("friction_signals") or []
+def _friction_cards(user):
     cards = []
-    for f in fr:
+    for f in user.get("friction_signals") or []:
         conf = f.get("confidence")
-        conf_s = (' <span class="conf">confidence %d%%</span>' % round(float(conf) * 100)
-                  if isinstance(conf, (int, float)) else "")
-        cards.append('<div class="friction reveal-inline"><p class="fr-p">%s%s</p>%s</div>'
-                     % (_esc(f.get("pattern")), conf_s, _evidence(f.get("evidence"), 1)))
-    return '<div class="stack">%s</div>' % "".join(cards) if cards else ""
+        fig = (coach_theme.impact_figure("%d%%" % round(float(conf) * 100), "confidence")
+               if isinstance(conf, (int, float)) else "")
+        foot = '<div class="foot">%s</div>' % fig if fig else ""
+        cards.append('<div class="card" style="margin-bottom:12px">'
+                     '<p style="font-weight:500">%s</p>%s%s</div>'
+                     % (_esc(f.get("pattern")), foot, _first_evidence(f.get("evidence"))))
+    return "".join(cards)
 
 
-def _list_block(items, key, render):
-    items = items or []
-    if not items:
-        return ""
-    return '<ul class="plainlist">%s</ul>' % "".join("<li>%s</li>" % render(i) for i in items)
+def _sg_list(items, label_key, with_why=False):
+    lis = []
+    for it in items or []:
+        why = ('<span class="d">%s</span>' % _esc(it.get("rationale"))) if with_why else ""
+        lis.append('<li style="margin-bottom:12px"><b>%s</b>%s%s</li>'
+                   % (_esc(it.get(label_key) or it.get("need")), why,
+                      _first_evidence(it.get("evidence"))))
+    return "<ul style='list-style:none;padding:0;margin:0'>%s</ul>" % "".join(lis) if lis else ""
 
 
 def _strengths_gaps(user):
-    strengths = user.get("strengths") or []
-    gaps = user.get("gaps") or []
-    if not strengths and not gaps:
+    s = _sg_list(user.get("strengths"), "area")
+    g = _sg_list(user.get("gaps"), "area", with_why=True)
+    if not s and not g:
         return ""
-    s_html = "".join(
-        '<li><b>%s</b>%s</li>' % (_esc(s.get("area")), _evidence(s.get("evidence"), 1))
-        for s in strengths)
-    g_html = "".join(
-        '<li><b>%s</b><span class="why">%s</span>%s</li>'
-        % (_esc(g.get("area") or g.get("need")), _esc(g.get("rationale")),
-           _evidence(g.get("evidence"), 1))
-        for g in gaps)
     cols = []
-    if s_html:
-        cols.append('<div class="col"><h3 class="good">Strengths</h3><ul class="rich">%s</ul></div>' % s_html)
-    if g_html:
-        cols.append('<div class="col"><h3 class="watch">Candidate gaps '
-                    '<span class="hint">signals for a coach, not advice</span></h3>'
-                    '<ul class="rich">%s</ul></div>' % g_html)
-    return '<div class="twocol">%s</div>' % "".join(cols)
+    if s:
+        cols.append('<div class="card"><h3 class="minor">Strengths</h3>%s</div>' % s)
+    if g:
+        cols.append('<div class="card"><h3 class="minor">Candidate gaps — signals, not advice</h3>%s</div>' % g)
+    return '<div class="grid2">%s</div>' % "".join(cols)
 
 
-def _context_health(user):
+def _setup(user):
     ch = user.get("context_health") or {}
     if not ch:
         return ""
     ao = ch.get("always_on") or {}
     hooks = ch.get("hooks") or []
     dups = ch.get("duplicate_capabilities") or []
-    overlaps = ch.get("overlapping_capabilities") or []
     unused = ch.get("unused_capabilities") or []
     mcp = ch.get("mcp_footprint") or {}
-    hook_total = sum(h.get("count", 0) for h in hooks)
-    stats = [
-        ("%s" % _num(ao.get("est_tokens", 0)), "tokens load every session"),
-        ("%d" % hook_total, "hook%s firing" % ("" if hook_total == 1 else "s")),
-        ("%d" % (mcp.get("servers", 0) or 0), "MCP servers"),
-        ("%d" % len(unused), "capabilities never used here"),
-    ]
-    stat_html = "".join('<div class="stat"><span class="num">%s</span><span class="cap">%s</span></div>'
-                        % (n, _esc(c)) for n, c in stats)
-    notes = []
-    for d in dups:
-        notes.append("Duplicate <b>%s</b> across %s"
-                     % (_esc(d.get("name")), _esc(" · ".join(d.get("sources", [])))))
-    for o in overlaps:
-        notes.append("Overlapping: <b>%s</b> &amp; <b>%s</b> (%s)"
-                     % (_esc(o.get("a")), _esc(o.get("b")), _esc(o.get("overlap"))))
-    note_html = ("<ul class='plainlist'>%s</ul>" % "".join("<li>%s</li>" % n for n in notes)
-                 if notes else "")
+    htot = sum(h.get("count", 0) for h in hooks)
+    grid = coach_theme.stat_grid([
+        (_num(ao.get("est_tokens", 0)), "tokens load every session"),
+        ("%d" % htot, "hook%s firing" % ("" if htot == 1 else "s")),
+        ("%d" % (mcp.get("servers", 0) or 0), "MCP server%s" % ("" if (mcp.get("servers", 0) or 0) == 1 else "s")),
+        ("%d" % len(unused), "capabilities unused here"),
+    ])
+    notes = ["Duplicate <b>%s</b> across %s" % (_esc(d.get("name")),
+             _esc(" · ".join(d.get("sources", [])))) for d in dups]
+    note_html = ("<ul class='plainlist' style='margin-top:14px;list-style:none;padding:0'>%s</ul>"
+                 % "".join("<li>%s</li>" % n for n in notes)) if notes else ""
     unused_html = ""
     if unused:
         names = "".join("<li>%s</li>" % _esc(u.get("name")) for u in unused)
-        unused_html = ('<details class="unused"><summary>%d capabilities owned but unused '
-                       'in the sampled sessions</summary><ul class="plainlist">%s</ul></details>'
+        unused_html = ('<details class="unused"><summary>%d capabilities owned but unused in '
+                       'the sampled sessions</summary><ul class="plainlist" '
+                       "style='list-style:none;padding:0;margin-top:8px'>%s</ul></details>"
                        % (len(unused), names))
-    return ('<div class="health"><div class="stats">%s</div>%s%s'
-            '<p class="micro">Raw signals only — collected for a coach to act on, not '
-            'recommendations from here.</p></div>') % (stat_html, note_html, unused_html)
+    return ('<div class="card">%s%s%s'
+            '<p style="font-size:12px;color:var(--ink-3);font-style:italic;margin-top:12px">'
+            'Raw signals only — collected for a coach to act on, not recommendations from here.'
+            "</p></div>") % (grid, note_html, unused_html)
 
 
 def render_html(project, user):
@@ -202,56 +175,42 @@ def render_html(project, user):
     work = project.get("work_type")
     title = ("%s work" % work.replace("-", " ").title()) if work else "How you work with Claude"
     slug = (project.get("project") or {}).get("slug") or ""
-    gen = project.get("generated_at") or user.get("generated_at") or ""
+    gen = (project.get("generated_at") or user.get("generated_at") or "")[:10]
 
-    models = prov.get("models") or {}
     chips = []
     if prov.get("sessions_sampled") is not None:
-        chips.append("%s of %s sessions read" % (_num(prov.get("sessions_sampled")),
-                                                 _num(prov.get("sessions_total", "?"))))
+        chips.append(coach_theme.chip("of %s sessions read" % _num(prov.get("sessions_total", "?")),
+                                      strong=_num(prov.get("sessions_sampled")), dot=True))
     if prov.get("quotes_verified") is not None:
-        chips.append("%s quotes verified" % _num(prov.get("quotes_verified")))
+        chips.append(coach_theme.chip("quotes verified", strong=_num(prov.get("quotes_verified"))))
         if prov.get("quotes_dropped"):
-            chips.append("%s unverifiable, dropped" % _num(prov.get("quotes_dropped")))
-    chip_html = "".join('<span class="chip">%s</span>' % _esc(c) for c in chips)
+            chips.append(coach_theme.chip("unverifiable, dropped", strong=_num(prov.get("quotes_dropped"))))
+    if gen:
+        chips.append(coach_theme.chip("generated %s" % gen))
 
-    # at-a-glance cards
-    proj_tags = _weighted_tags(project.get("domains")) + _weighted_tags(project.get("tools_and_materials"))
-    glance = (
-        '<div class="twocol">'
-        '<div class="card reveal" style="animation-delay:.05s"><p class="eyebrow">This project</p>'
-        '<p class="lede">%s</p>%s</div>'
-        '<div class="card reveal" style="animation-delay:.1s"><p class="eyebrow">How you work</p>'
-        '<p class="lede">%s</p>%s</div></div>'
-        % (_esc(project.get("summary")), proj_tags,
-           _esc(user.get("summary")), _signals_block(user)))
+    body = [
+        coach_theme.hero("Your Claude profile", title, _lead(project.get("summary")), "".join(chips)),
+        coach_theme.section("01", "How you work", coach_theme.signal_grid(_signal_rows(user)),
+                            eyebrow="behavioral signals"),
+        coach_theme.section("02", "What the work is", coach_theme.weight_bars(
+            [{"label": a.get("name"), "weight": a.get("weight")} for a in project.get("task_archetypes") or []]),
+            eyebrow="task patterns, by weight"),
+        coach_theme.section("03", "Where work snagged", _friction_cards(user), eyebrow="friction signals"),
+        coach_theme.section("04", "Strengths & gaps", _strengths_gaps(user), eyebrow="a two-sided read"),
+        coach_theme.section("05", "Your Claude setup", _setup(user), eyebrow="context-health signals"),
+    ]
 
-    idx = 3
-    sections = []
-    work_body = _weighted_tags(project.get("task_archetypes"))
-    sections.append(_section("What the work is", "task patterns Claude was used for", work_body, idx)); idx += 1
-    sections.append(_section("Where work snagged", "friction signals", _friction_block(user), idx)); idx += 1
-    sections.append(_section("Strengths & gaps", "two-sided read", _strengths_gaps(user), idx)); idx += 1
-    sections.append(_section("Your Claude setup", "context-health signals", _context_health(user), idx)); idx += 1
-
-    disclaimer = project.get("disclaimer") or user.get("disclaimer") or ""
-    model_line = ""
-    if models:
-        model_line = "Read by %s · synthesized by %s. " % (
-            _esc(models.get("per_session", "?")), _esc(models.get("synthesis", "?")))
-
-    hero = (
-        '<header class="hero reveal">'
-        '<p class="eyebrow">Your Claude profile</p>'
-        '<h1>%s</h1>'
-        '<p class="meta">%s &nbsp;·&nbsp; generated %s</p>'
-        '<div class="chips">%s</div></header>'
-        % (_esc(title), _esc(slug), _esc(gen[:10] if gen else ""), chip_html))
-    footer = ('<footer>%s%s This profile reflects the current project only; '
-              'a cross-project view comes later.</footer>'
-              % (model_line, _esc(disclaimer)))
-    body = hero + glance + "".join(s for s in sections if s) + footer
-    return coach_theme.page("%s — Claude profile" % title, body)
+    models = prov.get("models") or {}
+    model_line = ("Read by %s, synthesized by %s · " % (
+        _esc(models.get("per_session", "?")), _esc(models.get("synthesis", "?")))) if models else ""
+    disclaimer = (project.get("disclaimer") or user.get("disclaimer")
+                  or "evidence-verified but nondeterministic.")
+    return coach_theme.page(
+        "%s — ClaudeCoach" % title,
+        coach_theme.masthead("profile", slug),
+        "".join(b for b in body if b),
+        coach_theme.footer(model_line, disclaimer),
+    )
 
 
 def build(profiles_dir, open_browser=True):

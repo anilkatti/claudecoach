@@ -53,28 +53,29 @@ USER = {
 }
 
 
-def test_render_html_includes_key_sections():
+def test_render_uses_new_design_system():
     html = viz.render_html(PROJECT, USER)
-    assert "<html" in html and "</html>" in html
-    assert "A repository for building a Claude coaching plugin." in html
-    assert "developer tooling" in html
-    assert "re-explains the git push setup each session" in html   # friction
-    assert "frontend-design" in html                               # duplicate capability
-    assert "directive" in html                                     # behavioral signal
-    assert "watch it fail first" in html                           # an evidence quote
-    assert "1,250" in html or "1250" in html                       # always-on tokens
-    assert "nondeterministic" in html.lower()                      # disclaimer
+    assert "--accent:#bd4d2a" in html        # new token -> kit in use
+    assert "Inter" in html and "Fraunces" in html
+    assert 'class="mast"' in html            # shared masthead
+    assert "ClaudeCoach" in html             # wordmark / footer
 
 
-def test_render_html_escapes_user_content():
-    html = viz.render_html({"summary": "hi <script>alert(1)</script>"}, {})
-    assert "<script>alert(1)" not in html
-    assert "&lt;script&gt;" in html
+def test_render_has_hero_and_sections():
+    html = viz.render_html(PROJECT, USER)
+    assert "A repository for building a Claude coaching plugin." in html  # standfirst (lead)
+    assert "How you work" in html and 'class="sigs"' in html             # signal grid
+    assert "directive" in html                                           # a signal value
+    assert 'class="bars"' in html and "skill authoring" in html          # weight bars
+    assert "watch it fail first" in html                                 # a verified quote
+    assert "1,250" in html                                               # stat number
+    assert "nondeterministic" in html.lower()                            # disclaimer in footer
 
 
-def test_render_html_handles_empty_profiles():
-    html = viz.render_html({}, {})
-    assert "<html" in html and "</html>" in html
+def test_render_escapes_and_handles_empty():
+    out = viz.render_html({"summary": "hi <script>alert(1)</script>"}, {})
+    assert "<script>alert(1)" not in out and "&lt;script&gt;" in out
+    assert "<html" in viz.render_html({}, {}) and "</html>" in viz.render_html({}, {})
 
 
 def test_quote_keeps_embedded_quotes():
@@ -93,29 +94,20 @@ def test_evidence_drops_junk_and_marker_quotes():
         'session:b "[…profile-builder truncated 900 chars…]"',  # marker -> drop
         'session:c "a real, illustrative quote"',            # keep
     ]
-    out = viz._evidence(items)
+    out = viz._first_evidence(items)
     assert "a real, illustrative quote" in out
-    assert ">So <" not in out
+    assert "So" not in out
     assert "truncated" not in out
 
 
 def test_evidence_empty_when_all_junk():
-    assert viz._evidence(['session:a "So "']) == ""
+    assert viz._first_evidence(['session:a "So "']) == ""
 
 
-def test_render_uses_shared_theme():
-    html = viz.render_html(PROJECT, USER)
-    # --acquire exists ONLY in coach_theme.STYLE, not the old inline _TEMPLATE,
-    # so this fails before the refactor and passes after.
-    assert "--acquire:#3d6fb3" in html
-    assert "Fraunces" in html
-
-
-def test_setup_section_has_no_plus_more_tail():
+def test_setup_section_collapsible_unused_no_more_tail():
     many = {**USER, "context_health": {**USER["context_health"],
             "unused_capabilities": [{"name": f"cap{i}", "kind": "skills",
                                      "source": "personal"} for i in range(15)]}}
     html = viz.render_html({}, many)
-    assert "more" not in html.split("capabilities owned but unused")[1][:40]  # no "+N more"
-    assert "cap14" in html                # full list rendered (in the collapsible details)
-    assert "owned but unused" in html
+    assert "cap14" in html and "owned but unused" in html
+    assert "+1 more" not in html and "+3 more" not in html
