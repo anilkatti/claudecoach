@@ -1,0 +1,16 @@
+{
+  "name": "claudecoach",
+  "description": "ClaudeCoach — a local, private coach for how you use Claude Code (sense → recommend → do).",
+  "owner": {
+    "name": "Anil Katti",
+    "url": "https://github.com/anilkatti"
+  },
+  "plugins": [
+    {
+      "name": "claudecoach",
+      "source": "./",
+      "description": "Profile your Claude Code usage, get evidence-cited recommendations, and apply the ones you approve — sense → recommend → do. Local and private.",
+      "keywords": ["coaching", "profiling", "skills"]
+    }
+  ]
+}

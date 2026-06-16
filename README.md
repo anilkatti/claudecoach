@@ -59,7 +59,18 @@ your files, and only on explicit per-action consent.
 
 ## Install
 
-> Single-plugin packaging is in progress. For now, symlink each skill into `~/.claude/skills/`:
+Install all three skills as one plugin (from inside Claude Code):
+
+```
+/plugin marketplace add anilkatti/claudecoach
+/plugin install claudecoach@claudecoach
+```
+
+`/plugin marketplace add` also accepts a local path (`/plugin marketplace add /path/to/claudecoach`).
+Installed this way, the skills load namespaced as `/claudecoach:profile-builder`,
+`/claudecoach:recommend-actions`, and `/claudecoach:perform-actions`.
+
+<details><summary>Dev install (symlinks instead of the plugin)</summary>
 
 ```sh
 cd /path/to/claudecoach
@@ -67,8 +78,9 @@ ln -s "$PWD/skills/profile-builder"   ~/.claude/skills/profile-builder
 ln -s "$PWD/skills/recommend-actions" ~/.claude/skills/recommend-actions
 ln -s "$PWD/skills/perform-actions"   ~/.claude/skills/perform-actions
 ```
+</details>
 
-Then, in any project: `/profile-builder` → `/recommend-actions` → `/perform-actions`.
+Then, in any project, run them in order: **profile-builder → recommend-actions → perform-actions.**
 
 ## Privacy
 
