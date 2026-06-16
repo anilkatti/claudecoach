@@ -25,7 +25,7 @@ profiles ─▶ load_profile.py ─▶ 4 lanes ─┬─ doctor(config) · smith
                                                                                                                  │
                                                                                                          render.py ─▶ actions.html + console
                                                                                                                  │
-                                                                                                         apply loop (per-action consent)
+                                                                                          hand off to /perform-actions (applies, reversibly)
 ```
 
 Capability recommendations come from a **live, profile-scoped web lookup** that

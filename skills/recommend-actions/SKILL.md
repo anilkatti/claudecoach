@@ -83,24 +83,14 @@ Run: `python scripts/render.py "<dir>/actions.json" --no-open` to print the cons
 summary. Then **ask** the user: "Want me to open the visual report in your browser?"
 If yes, run `python scripts/render.py "<dir>/actions.json"` (opens `actions.html`).
 
-## Step 5 — Apply loop (opt-in, per action)
-Walk the actions in `do_now` → `consider` → `fyi` order. For each, show its title +
-rationale + `apply.preview`, then ask whether to apply it. Only on an explicit yes:
-- `run_command` → run the shown command.
-- `edit_file` → show the diff (`python scripts/apply.py diff <path> <new_file>`),
-  then `python scripts/apply.py edit <path> <new_file>` (backs up first).
-- `archive` → remove a capability reversibly: `python scripts/apply.py archive <path> <archive_dir>`
-  (moves it to an archive dir; never deletes — undo with `python scripts/apply.py restore <archived> <orig>`).
-- `scaffold_skill` → invoke the `skill-creator` skill with the drafted spec.
-- `handoff_skill` → invoke the named skill (`update-config` / `fewer-permission-prompts`).
-- `advisory` → nothing to apply; it's guidance.
-Update that action's `apply.status` to `applied`/`skipped` in `actions.json` as you go.
-
-## Step 6 — Summarize
-Tell the user where `actions.json` / `actions.html` live, what was applied vs skipped,
-and the headline honesty rails: LLM-derived & nondeterministic; "unused" means "in the
-sample"; capability research is only as fresh as the per-project cache (up to a 14-day TTL, or live if refreshed this run); habit
-findings are correlational; removals were reversible.
+## Step 5 — Hand off to /perform-actions
+recommend-actions recommends; it does not apply. Tell the user where `actions.json` /
+`actions.html` live, then offer the separate, consented apply step: **`/perform-actions`**,
+which walks the actions and applies the ones they approve (each shown as a diff/command
+first; removals reversible). Summarize the headline honesty rails: LLM-derived &
+nondeterministic; "unused" means "in the sample"; capability research is only as fresh as
+the per-project cache (up to a 14-day TTL, or live if refreshed this run); habit findings
+are correlational.
 
 ## Honesty rails
 - Read-only and non-networked by default; network and each apply are separately consented.
@@ -108,4 +98,4 @@ findings are correlational; removals were reversible.
   real URL; correlational (not causal) language for habits; removals reversible.
 
 ## Tests
-`python -m pytest scripts/` exercises the plumbing (load, build, render, apply, prompts).
+`python -m pytest scripts/` exercises the plumbing (load, build, render, prompts, integration).

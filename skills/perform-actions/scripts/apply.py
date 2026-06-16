@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Reversible file primitives for the /recommend-actions apply loop. There is
+"""Reversible file primitives for the /perform-actions doers. There is
 deliberately NO destructive delete: "remove a capability" means archive (move),
 which is recoverable. Config edits back up and write atomically; archive/restore
 never overwrite an existing target."""
