@@ -30,6 +30,14 @@ Tell the user, and wait for a yes:
 > only condensed, scrubbed text and verbatim-verified quotes reach the
 > Haiku/Opus subagents. Proceed?"
 
+**Scope — this project (worktrees auto-included).** Profile **this project**;
+`sessions.py discover()` automatically folds in every git worktree of the repo, so
+the sample is the project's whole history. **Do not ask the user to choose between
+the main repo and a worktree** — fold them silently, then after Step 1 tell the user
+which worktree roots were included (the `report["worktrees"]` list). A cross-project
+**"all projects together"** view is coming in a later version; if the user asks for
+it, say it's not available yet and offer to proceed with this project.
+
 ## Step 0.5 — If a profile already exists, ask overwrite vs update
 Encode the cwd to the slug and check whether `~/.claude/profiles/<slug>/` already
 holds a profile. If it does, ask the user (read its `generated_at` for the date):
