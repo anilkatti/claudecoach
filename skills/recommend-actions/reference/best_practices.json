@@ -1,18 +1,109 @@
 {
-  "built_at": "seed",
+  "built_at": "2026-06-15",
   "practices": [
     {
-      "id": "plan-before-big-change",
-      "principle": "For multi-step or hard-to-reverse work, set up a plan before diving in, scaled to the task.",
+      "id": "be-clear-and-specific",
+      "principle": "Spell out exactly what you want \u2014 the desired output, format, and constraints \u2014 instead of relying on Claude to infer it from a vague request. Treat it like a capable new colleague who lacks your context: the more precisely you explain the goal, the better the result.",
+      "applies_to_signal": "prompting",
+      "source_url": "https://platform.claude.com/docs/en/build-with-claude/prompt-engineering/claude-prompting-best-practices",
+      "source_org": "anthropic"
+    },
+    {
+      "id": "give-context-and-motivation",
+      "principle": "Explain the reason behind an instruction, not just the instruction itself. Saying why a constraint matters helps the model generalize correctly and produce more targeted work than a bare command would.",
+      "applies_to_signal": "prompting",
+      "source_url": "https://platform.claude.com/docs/en/build-with-claude/prompt-engineering/claude-prompting-best-practices",
+      "source_org": "anthropic"
+    },
+    {
+      "id": "show-examples-not-just-instructions",
+      "principle": "Provide a few concrete, relevant examples of what good output looks like. Well-chosen examples steer format, tone, and structure far more reliably than describing them in the abstract.",
+      "applies_to_signal": "prompting",
+      "source_url": "https://developers.openai.com/api/docs/guides/prompt-engineering",
+      "source_org": "openai"
+    },
+    {
+      "id": "explore-then-plan-then-do",
+      "principle": "For anything multi-step or unfamiliar, separate research and planning from execution: understand the problem and agree a plan first, then carry it out. Jumping straight to producing output risks confidently solving the wrong problem.",
+      "applies_to_signal": "planning",
+      "source_url": "https://code.claude.com/docs/en/best-practices",
+      "source_org": "anthropic"
+    },
+    {
+      "id": "calibrate-effort-to-the-task",
+      "principle": "Match the depth of work to the difficulty of the task. Reserve maximum effort and exhaustive analysis for genuinely hard problems, and keep simple or routine tasks lightweight rather than over-investing in them.",
       "applies_to_signal": "planning",
       "source_url": "https://platform.claude.com/docs/en/build-with-claude/effort.md",
       "source_org": "anthropic"
     },
     {
-      "id": "verify-before-done",
-      "principle": "Hold the output to a standard — verify or test before calling it done rather than accepting unread.",
+      "id": "define-success-criteria-first",
+      "principle": "Decide what a successful outcome looks like before you start, and write it down. Clear, checkable success criteria let the work be steered and judged against a real target instead of a vague sense of done.",
+      "applies_to_signal": "planning",
+      "source_url": "https://www.anthropic.com/research/building-effective-agents",
+      "source_org": "anthropic"
+    },
+    {
+      "id": "give-a-way-to-verify-the-work",
+      "principle": "Provide a check the work can be measured against \u2014 a test, a build, a comparison to a reference \u2014 so success produces a clear pass or fail. Without a check, looks done is the only signal, and every mistake waits for you to catch it.",
+      "applies_to_signal": "verification",
+      "source_url": "https://code.claude.com/docs/en/best-practices",
+      "source_org": "anthropic"
+    },
+    {
+      "id": "demand-evidence-not-assertions",
+      "principle": "Ask for the evidence that the work is correct \u2014 the test output, the command run and what it returned, the result shown \u2014 rather than accepting a claim that it succeeded. Reviewing evidence is faster and safer than trusting a plausible-sounding summary.",
       "applies_to_signal": "verification",
       "source_url": "https://platform.claude.com/docs/en/agents-and-tools/tool-use/overview.md",
+      "source_org": "anthropic"
+    },
+    {
+      "id": "test-systematically-not-by-eye",
+      "principle": "Check output against defined criteria systematically instead of spot-judging it once and moving on. Structured, repeatable evaluation catches regressions when you change the prompt, the approach, or the tool, which eyeballing a single result will miss.",
+      "applies_to_signal": "verification",
+      "source_url": "https://developers.openai.com/api/docs/guides/evals",
+      "source_org": "openai"
+    },
+    {
+      "id": "course-correct-early-and-often",
+      "principle": "Redirect as soon as you notice the work drifting off track rather than waiting for it to finish. Tight, early feedback loops produce better results faster than letting a wrong direction run and trying to salvage it at the end.",
+      "applies_to_signal": "steering",
+      "source_url": "https://code.claude.com/docs/en/best-practices",
+      "source_org": "anthropic"
+    },
+    {
+      "id": "reset-after-repeated-corrections",
+      "principle": "If you have corrected the same mistake more than a couple of times, stop patching it. The accumulated failed attempts are now cluttering the work; start fresh with a sharper instruction that folds in what you learned.",
+      "applies_to_signal": "steering",
+      "source_url": "https://code.claude.com/docs/en/best-practices",
+      "source_org": "anthropic"
+    },
+    {
+      "id": "delegate-investigation-to-stay-focused",
+      "principle": "Hand off broad research and exploration to a separate, isolated effort that reports back a summary, instead of doing it inline. This keeps your main working context clean and focused on the actual task rather than flooded with everything that was read.",
+      "applies_to_signal": "leverage",
+      "source_url": "https://code.claude.com/docs/en/best-practices",
+      "source_org": "anthropic"
+    },
+    {
+      "id": "prefer-simple-over-clever",
+      "principle": "Reach for the simplest approach that solves the problem, and add complexity only when it is actually needed. Success comes from building the right thing for your needs, not the most elaborate one.",
+      "applies_to_signal": "leverage",
+      "source_url": "https://www.anthropic.com/research/building-effective-agents",
+      "source_org": "anthropic"
+    },
+    {
+      "id": "stop-trusting-output-you-cannot-verify",
+      "principle": "Do not accept plausible-looking output you have not checked. A result that reads convincingly can still mishandle edge cases, so if you cannot verify it, do not rely on it.",
+      "applies_to_signal": "habit",
+      "source_url": "https://code.claude.com/docs/en/best-practices",
+      "source_org": "anthropic"
+    },
+    {
+      "id": "keep-context-lean-and-high-signal",
+      "principle": "Treat the working context as a finite resource and keep only the smallest set of high-signal information needed for the task. Letting it bloat with stale or irrelevant material degrades quality and buries the instructions that matter.",
+      "applies_to_signal": "habit",
+      "source_url": "https://www.anthropic.com/engineering/effective-context-engineering-for-ai-agents",
       "source_org": "anthropic"
     }
   ]
