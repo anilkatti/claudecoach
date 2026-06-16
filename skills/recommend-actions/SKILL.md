@@ -99,7 +99,7 @@ Update that action's `apply.status` to `applied`/`skipped` in `actions.json` as 
 ## Step 6 — Summarize
 Tell the user where `actions.json` / `actions.html` live, what was applied vs skipped,
 and the headline honesty rails: LLM-derived & nondeterministic; "unused" means "in the
-sample"; research is only as fresh as the index build (+ any live top-up); habit
+sample"; capability research is only as fresh as the per-project cache (up to a 14-day TTL, or live if refreshed this run); habit
 findings are correlational; removals were reversible.
 
 ## Honesty rails

@@ -16,13 +16,16 @@ report matching `profile.html`) + `actions.json` in `~/.claude/profiles/<slug>/`
 ## How it works
 
 ```
-profiles ─▶ load_profile.py ─▶ 4 lanes ─▶ [scout(acquire) · doctor(config) · smith(author) · coach(behavior)] (opus, parallel)
-                                                  │ candidate actions
-                                          action_synthesizer (opus) ─▶ actions.json
-                                                  │
-                                          render.py ─▶ actions.html + console
-                                                  │
-                                          apply loop (per-action consent)
+profiles ─▶ load_profile.py ─▶ 4 lanes ─┬─ doctor(config) · smith(author) · coach(behavior)  (opus, parallel) ─┐
+                                         │                                                                       │
+                                         └─ acquire: cache fresh? ─▶ reuse cache                                │
+                                                                   : capability_scout (opus, live)  ─────────────┤
+                                                                                                                 │ candidate actions
+                                                                                           action_synthesizer (opus) ─▶ actions.json
+                                                                                                                 │
+                                                                                                         render.py ─▶ actions.html + console
+                                                                                                                 │
+                                                                                                         apply loop (per-action consent)
 ```
 
 Capability recommendations come from a **live, profile-scoped web lookup** that
