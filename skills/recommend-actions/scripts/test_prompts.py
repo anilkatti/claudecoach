@@ -56,6 +56,21 @@ def test_config_doctor_has_skill_reorg_lens():
     assert "archive" in text.lower()
 
 
+def test_config_doctor_skill_hygiene_levers():
+    text = _read("config_doctor")
+    low = text.lower()
+    # right-lever-per-case, not always "archive"
+    assert "disable-model-invocation" in low
+    assert "skilloverrides" in low
+    # framed as triggering/selection clarity, not inflated token savings
+    assert "triggering" in low
+    assert "~100 tokens" in text or "100 tokens" in text
+    # standalone-only caveat so it never tells a plugin skill to use these levers
+    assert "standalone" in low and "plugin" in low
+    # rail preserved
+    assert "sampled sessions" in low
+
+
 def test_synthesizer_balances_families_in_priority():
     text = _read("action_synthesizer")
     assert "crowd out" in text.lower()
