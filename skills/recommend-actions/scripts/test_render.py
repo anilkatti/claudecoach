@@ -106,3 +106,13 @@ def test_console_has_review_banner():
     txt = render.render_console(DOC)
     assert "/perform-actions" in txt
     assert "review" in txt.lower()
+
+
+def test_html_card_has_apply_button_and_runtime():
+    html = render.render_html(DOC)
+    assert 'data-action-id="capture-coa"' in html        # id threaded onto the card
+    assert 'class="apply-btn"' in html                   # interactive CTA
+    assert 'id="ac-apply-runtime"' in html               # embedded toggle script
+    assert "/__actions__/select" in html                 # runtime posts to the server
+    assert "View change" in html                         # diff demoted, not the headline
+    assert "Apply — edit_file" not in html               # old drawer label gone
