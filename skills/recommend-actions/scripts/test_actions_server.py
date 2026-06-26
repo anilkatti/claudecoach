@@ -91,3 +91,35 @@ def test_unknown_post_path_404(server):
     port, _ = server
     status, _ = _post(port, "/__elsewhere__", {"x": 1}, _HDR)
     assert status == 404
+
+
+def test_oversized_body_rejected(server):
+    port, root = server
+    conn = http.client.HTTPConnection("127.0.0.1", port, timeout=2)
+    # Announce an oversized Content-Length; the server rejects on the header alone,
+    # before reading any body, so we never need to transmit the large payload.
+    conn.putrequest("POST", "/__actions__/select")
+    conn.putheader("Content-Type", "application/json")
+    conn.putheader("X-Actions-Select", "1")
+    conn.putheader("Content-Length", str(acts.MAX_BYTES + 1))
+    conn.endheaders()  # sends headers only
+    r = conn.getresponse()
+    r.read()
+    conn.close()
+    assert r.status == 400
+    # disk untouched
+    doc = json.loads((root / "actions.json").read_text())
+    assert doc["actions"][0]["apply"]["status"] == "pending"
+
+
+def test_select_missing_actions_json_404(tmp_path):
+    handler = functools.partial(acts.ActionsHandler, directory=str(tmp_path))  # no actions.json written
+    httpd = ThreadingHTTPServer(("127.0.0.1", 0), handler)
+    port = httpd.server_address[1]
+    t = threading.Thread(target=httpd.serve_forever, daemon=True)
+    t.start()
+    try:
+        status, _ = _post(port, "/__actions__/select", {"id": "a1", "selected": True}, _HDR)
+        assert status == 404
+    finally:
+        httpd.shutdown()

@@ -85,6 +85,7 @@ class ActionsHandler(SimpleHTTPRequestHandler):
         if not set_selected(doc, action_id, selected):
             self.send_error(404, "Unknown action id")
             return
+        # Single-user local UI flow: one writer at a time, so a fixed .tmp name is safe.
         tmp = target + ".tmp"
         with open(tmp, "w") as f:
             json.dump(doc, f, indent=2)
