@@ -64,8 +64,10 @@ output of `split_lanes`, not raw profile field names.
     "title": "...", "rationale": "...", "evidence": [/* as above */],
     "impact_estimate": {/* as above */}, "source": {/* as above */}, "effort": "low",
     "apply": {"kind": "edit_file", "preview": "<diff>", "target_path": "<absolute path — for edit_file>",
-              "reversible": true, "handoff": null, "status": "pending | applied | skipped"}
+              "reversible": true, "handoff": null, "status": "pending | selected | applied | skipped"}
   }],
+  // Note: `selected` is set by the Apply toggle in actions.html (via `actions_server.py`),
+  // not by the synthesizer, which always emits `pending`.
   "not_recommended": [{"considered": "...", "why_dropped": "superseded by <id> / no source found"}],
   "disclaimer": "LLM-derived from an evidence-verified but partial sample; nondeterministic; acquire research is a live, profile-scoped lookup cached per project."
 }

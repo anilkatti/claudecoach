@@ -230,8 +230,29 @@ def priority_lane(label, kind, count):
     return f'<div class="lane-head"><span class="pri {cls}">{esc(label)}</span>{cnt}</div>'
 
 
+_APPLY_LABEL = {"pending": "Apply", "selected": "✓ Selected for application",
+                "applied": "Applied ✓", "skipped": "Skipped"}
+
+
+def _apply_affordance(action_id, apply_kind, apply_preview, status):
+    """Apply button (primary CTA) + a demoted 'View change' disclosure. advisory: no button."""
+    if not apply_kind or apply_kind == "advisory":
+        return ""
+    st = status if status in _APPLY_LABEL else "pending"
+    pressed = "true" if st == "selected" else "false"
+    disabled = " disabled" if st in ("applied", "skipped") else ""
+    btn = (f'<button class="apply-btn" type="button" data-action-id="{esc(action_id)}" '
+           f'data-apply-kind="{esc(apply_kind)}" aria-pressed="{pressed}"{disabled}>'
+           f'{esc(_APPLY_LABEL[st])}</button>')
+    detail = (f'<details class="apply"><summary>View change</summary>'
+              f'<pre>{esc(apply_preview)}</pre></details>') if apply_preview else ""
+    return f'<div class="apply-row">{btn}</div>{detail}'
+
+
 def action_card(title, family, effort, rationale_html, *, impact_html="",
-                source_html="", evidence_html="", apply_kind="", apply_preview=""):
+                source_html="", evidence_html="", apply_kind="", apply_preview="",
+                action_id="", status="pending"):
+    st = status if status in _APPLY_LABEL else "pending"
     fam = (f'<span class="tag fam"><span class="fdot" style="background:var(--c-{esc(family)})">'
            f'</span>{esc(family)}</span>')
     eff = f'<span class="tag">{esc(effort)} effort</span>' if effort else ""
@@ -241,13 +262,11 @@ def action_card(title, family, effort, rationale_html, *, impact_html="",
     if source_html:
         foot_bits.append(f'<span class="src">{source_html}</span>')
     foot = f'<div class="foot">{"".join(foot_bits)}</div>' if foot_bits else ""
-    drawer = ""
-    if apply_kind or apply_preview:
-        drawer = (f'<details class="apply"><summary>Apply — {esc(apply_kind)}</summary>'
-                  f'<pre>{esc(apply_preview)}</pre></details>')
-    return (f'<div class="acard"><div class="acard-top"><h3>{esc(title)}</h3>'
+    apply_html = _apply_affordance(action_id, apply_kind, apply_preview, st)
+    return (f'<div class="acard" data-action-id="{esc(action_id)}" data-status="{esc(st)}">'
+            f'<div class="acard-top"><h3>{esc(title)}</h3>'
             f'<div class="tags">{fam}{eff}</div></div>'
-            f'<p class="rat">{rationale_html}</p>{foot}{evidence_html}{drawer}</div>')
+            f'<p class="rat">{rationale_html}</p>{foot}{evidence_html}{apply_html}</div>')
 
 
 def footer(model_line, disclaimer):

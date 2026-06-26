@@ -82,6 +82,9 @@ Have it read `reference/schema.md` so field names match. Parse its single JSON o
 Run: `python scripts/render.py "<dir>/actions.json" --no-open` to print the console
 summary. Then **ask** the user: "Want me to open the visual report in your browser?"
 If yes, run `python scripts/render.py "<dir>/actions.json"` (opens `actions.html`).
+Opening serves the report from a small local `actions_server.py`, so clicking **Apply**
+on a card persists that choice into `actions.json` (sets `apply.status: "selected"`) —
+which `/perform-actions` then reads to pre-filter what it applies.
 
 ## Step 5 — Hand off to /perform-actions
 recommend-actions recommends; it does not apply. Tell the user where `actions.json` /

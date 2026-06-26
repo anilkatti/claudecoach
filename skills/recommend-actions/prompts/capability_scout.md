@@ -26,7 +26,14 @@ recommend only what is relevant to *this* user, not to survey everything that ex
     an unverified URL.
   - If **network is NOT enabled**, emit an empty array `[]` and nothing else —
     acquiring new capabilities needs a live lookup, and you must not guess one.
-- Prefer MCP for a live-data/tool gap, a skill for a procedure, a plugin for a bundle.
+- **A CLI you already use is the default — make an MCP earn its place.** Before proposing
+  an MCP, check `tools_and_materials` and `owned_capabilities` for an existing CLI that
+  already covers the gap (e.g. `gh`, `docker`, `aws`). If one exists, recommend an MCP
+  **only** when it gives something the CLI genuinely can't — structured/programmatic access
+  the model can't reliably parse from CLI text, or a materially tighter loop — and say so
+  explicitly, weighing the MCP's always-on tool-schema **token cost**. Otherwise prefer the
+  CLI (no install) or a thin skill that drives it. Map the gap to the right form: a skill
+  for a procedure, a plugin for a bundle, an MCP for a live-data/tool gap a CLI can't fill.
 
 ## Surface strong, well-known options — not only literal gap-fillers
 Within the profile's scope, you may also recommend a **widely-used, well-known,

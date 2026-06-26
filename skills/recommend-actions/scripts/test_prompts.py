@@ -49,6 +49,15 @@ def test_capability_scout_surfaces_wellknown_options():
     assert "never" in text.lower() and "invent" in text.lower()
 
 
+def test_capability_scout_is_cli_first():
+    low = _read("capability_scout").lower()
+    assert "cli" in low
+    assert "earn its place" in low and "genuinely can't" in low
+    assert "token cost" in low
+    # the old blanket "prefer MCP" line is removed
+    assert "prefer mcp for a live-data/tool gap, a skill for a procedure" not in low
+
+
 def test_config_doctor_has_skill_reorg_lens():
     text = _read("config_doctor")
     assert "reorganize" in text.lower()
@@ -69,6 +78,14 @@ def test_config_doctor_skill_hygiene_levers():
     assert "standalone" in low and "plugin" in low
     # rail preserved
     assert "sampled sessions" in low
+
+
+def test_config_doctor_respects_global_personal_scope():
+    low = _read("config_doctor").lower()
+    # personal-scope capabilities are global; don't archive the personal copy of a cross-scope dup
+    assert "deliberately global" in low
+    assert "keep them in sync" in low
+    assert "within the same scope" in low      # archive reserved for same-scope dups / dead weight
 
 
 def test_synthesizer_balances_families_in_priority():

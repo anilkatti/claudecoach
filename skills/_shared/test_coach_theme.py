@@ -80,17 +80,44 @@ def test_priority_lane_kind_classes():
     assert 'class="pri fyi"' in ct.priority_lane("FYI", "fyi", "1 action")
 
 
-def test_action_card_family_color_and_drawer():
-    a = ct.action_card("Install X", "acquire", "low",
-                       "Because reasons.",
+def test_action_card_has_apply_button_and_demoted_preview():
+    a = ct.action_card("Install X", "acquire", "low", "Because reasons.",
                        impact_html=ct.impact_figure("2", "avoided"),
                        source_html='verified · <a href="https://ex.com">src</a>',
                        evidence_html=ct.evidence("sig", "q"),
-                       apply_kind="run_command", apply_preview="/plugin install x")
+                       apply_kind="run_command", apply_preview="/plugin install x",
+                       action_id="install-x", status="pending")
     assert 'class="acard"' in a and "<h3>Install X</h3>" in a
-    assert "var(--c-acquire)" in a                 # family dot color
-    assert "low effort" in a
-    assert "Apply — run_command" in a and "/plugin install x" in a
+    assert "var(--c-acquire)" in a and "low effort" in a
+    assert 'data-action-id="install-x"' in a            # id on the card
+    assert 'class="apply-btn"' in a and 'aria-pressed="false"' in a   # CTA button
+    assert ">Apply<" in a                               # pending label
+    assert "View change" in a and "/plugin install x" in a   # preview demoted, still present
+    assert "Apply — run_command" not in a               # old drawer gone
+
+
+def test_action_card_selected_status_renders_pressed():
+    a = ct.action_card("X", "config", "low", "r", apply_kind="archive",
+                       apply_preview="/path", action_id="x", status="selected")
+    assert 'aria-pressed="true"' in a
+    assert "Selected for application" in a
+
+
+def test_action_card_advisory_has_no_button():
+    a = ct.action_card("Habit", "behavior", "low", "guidance",
+                       apply_kind="advisory", apply_preview="do the thing",
+                       action_id="hab", status="pending")
+    assert "apply-btn" not in a                         # nothing to execute
+    assert "guidance" in a
+
+
+def test_action_card_applied_and_skipped_are_disabled():
+    a = ct.action_card("X", "config", "low", "r", apply_kind="archive",
+                       apply_preview="/p", action_id="x", status="applied")
+    assert "disabled" in a and "Applied ✓" in a
+    b = ct.action_card("Y", "config", "low", "r", apply_kind="archive",
+                       apply_preview="/p", action_id="y", status="skipped")
+    assert "disabled" in b and "Skipped" in b
 
 
 def test_footer():
