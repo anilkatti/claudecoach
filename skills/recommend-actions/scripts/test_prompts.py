@@ -49,6 +49,15 @@ def test_capability_scout_surfaces_wellknown_options():
     assert "never" in text.lower() and "invent" in text.lower()
 
 
+def test_capability_scout_is_cli_first():
+    low = _read("capability_scout").lower()
+    assert "cli" in low
+    assert "earn its place" in low and "genuinely can't" in low
+    assert "token cost" in low
+    # the old blanket "prefer MCP" line is removed
+    assert "prefer mcp for a live-data/tool gap, a skill for a procedure" not in low
+
+
 def test_config_doctor_has_skill_reorg_lens():
     text = _read("config_doctor")
     assert "reorganize" in text.lower()
