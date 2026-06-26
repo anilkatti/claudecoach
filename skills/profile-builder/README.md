@@ -39,9 +39,10 @@ facts                            │                          │
 ```
 
 - **Plumbing is deterministic** (`scripts/sessions.py`, `inventory.py`,
-  `context_health.py`): locate sessions, recency-stratified seeded sampling, strip
-  oversized bodies, scrub secrets, count neutral/friction facts, probe config
-  health, and **verify every evidence quote** against the transcripts.
+  `context_health.py`): locate sessions (across all worktrees, including removed
+  ones), time-stratified seeded sampling, strip oversized bodies, scrub secrets,
+  count neutral/friction facts, probe config health, and **verify every evidence
+  quote** against the transcripts.
 - **Interpretation is entirely LLM**: a cheap **Haiku** subagent reads each
   sampled session; one **Opus** subagent synthesizes the profiles, citing only
   quotes the verifier confirmed.

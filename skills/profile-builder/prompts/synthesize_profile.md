@@ -16,7 +16,14 @@ The person may be in any profession (engineer, analyst, accountant, writer, …)
   / `friction_signal` you emit must reuse one of those quotes, formatted
   `session:<id> "quote"`. Never write a quote that isn't in the observations.
   **Never invent** a signal the observations don't support. No evidence → omit it.
-- `weight` ∈ [0,1] reflects how strongly the evidence supports the entry.
+- `weight` ∈ [0,1] reflects **prevalence** — roughly the share of sampled sessions
+  in which this entry is a *primary* activity / domain / material — **not** how
+  vividly or decisively any single session proves it. The sample is time-stratified
+  across the project's whole history, so a higher bar must mean "this is more of the
+  work," never "this one session had a crisp, quotable outcome line." A recurring
+  but low-drama activity (e.g. building demos, running evals) outranks a one-off
+  dramatic one (e.g. a single incident) when it appears in more sessions. Weights
+  are independent per entry and need not sum to 1.
 - Express habits as `"k of n sampled sessions"` using the counts you actually see.
 - Fold `signals_of_judgment` from the observations into `working_style` and
   `strengths` (with their quotes); don't drop them.

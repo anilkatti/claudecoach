@@ -29,9 +29,16 @@ kind (spreadsheets, documents, datasets, code), not just code. Never assume soft
                                      "used_here": true}],
   "gaps": [{"need": "...", "rationale": "...", "confidence": 0.0, "evidence": ["..."]}],
   "provenance": {"...": "see shared provenance below"},
-  "disclaimer": "LLM-derived from a recency-stratified sample; evidence-verified but nondeterministic."
+  "disclaimer": "LLM-derived from a time-stratified sample; evidence-verified but nondeterministic."
 }
 ```
+
+`weight` ∈ [0,1] on `domains` / `tools_and_materials` / `task_archetypes` means
+**prevalence** — how much of the sampled work the entry represents (its share of
+sampled sessions as a *primary* activity) — **not** how decisively a single session
+proves it. Weights are independent and need not sum to 1. Because the sample is
+time-stratified across the project's whole history, the bars track "what the work
+mostly is," not "which session had the most quotable line."
 
 `tools_and_materials` replaces v1's `tech_stack`: it holds code stacks **and**
 non-code materials (e.g. "Excel workbooks", "court filings", "CSV exports").
@@ -96,16 +103,19 @@ Copied verbatim from `scripts/context_health.py`. **Raw signals only — no verd
 ## Shared `provenance`
 
 ```json
-{"sessions_total": 0, "sessions_sampled": 0, "sampling": "recency-stratified",
+{"sessions_total": 0, "sessions_sampled": 0, "sampling": "time-stratified",
  "seed": 0, "skipped_short": 0, "trivial_skipped": 0, "too_short_chosen": 0,
  "truncated_sessions": 0, "extraction_failures": 0,
  "quotes_verified": 0, "quotes_dropped": 0,
  "models": {"per_session": "claude-haiku-4-5-20251001", "synthesis": "claude-opus-4-8"}}
 ```
 
-`recent`-set selection is keyed on file mtime, which advances when a session is
-resumed — so "same data + same seed → same sample" holds only if the logs are
-untouched between runs. `quotes_dropped` counts evidence the verifier rejected.
+Selection partitions the project's whole history (all worktrees, including
+*removed* ones) into equal-count time strata and draws one substantive session per
+stratum, so the sample mirrors the work over time rather than front-loading the
+latest burst. Stratum membership is keyed on file mtime, which advances when a
+session is resumed — so "same data + same seed → same sample" holds only if the
+logs are untouched between runs. `quotes_dropped` counts evidence the verifier rejected.
 
 The per-session observation schema (the Haiku output that feeds synthesis) lives
 in `prompts/per_session_extract.md`. `strengths[]` / `gaps[]` / `friction_signals[]`

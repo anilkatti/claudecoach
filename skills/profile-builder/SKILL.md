@@ -23,18 +23,22 @@ shown when the skill loads); pass the user's project as `--cwd` / the first arg.
 
 ## Step 0 — Consent gate (required, before any read)
 Tell the user, and wait for a yes:
-> "I'll read THIS project's Claude Code session transcripts (a recency-stratified
-> sample) and inventory your installed skills/commands/agents/MCP plus your
+> "I'll read THIS project's Claude Code session transcripts (a time-stratified
+> sample spanning its whole history) and inventory your installed
+> skills/commands/agents/MCP plus your
 > config surface (CLAUDE.md & memory sizes, hooks, duplicate/unused capabilities).
 > Secrets are scrubbed locally and slash-command/system machinery is stripped;
 > only condensed, scrubbed text and verbatim-verified quotes reach the
 > Haiku/Opus subagents. Proceed?"
 
-**Scope — this project (worktrees auto-included).** Profile **this project**;
-`sessions.py discover()` automatically folds in every git worktree of the repo, so
-the sample is the project's whole history. **Do not ask the user to choose between
-the main repo and a worktree** — fold them silently, then after Step 1 tell the user
-which worktree roots were included (the `report["worktrees"]` list). A cross-project
+**Scope — this project (worktrees auto-included, incl. removed ones).** Profile
+**this project**; `sessions.py discover()` automatically folds in every git worktree
+of the repo — including worktrees that have since been **removed** (their session
+dirs survive `git worktree list` pruning, so a one-worktree-per-task workflow's
+history isn't lost). The sample therefore spans the project's whole history. **Do
+not ask the user to choose between the main repo and a worktree** — fold them
+silently, then after Step 1 tell the user which live worktree roots were included
+(the `report["worktrees"]` list). A cross-project
 **"all projects together"** view is coming in a later version; if the user asks for
 it, say it's not available yet and offer to proceed with this project.
 
@@ -136,8 +140,9 @@ already on disk and they can run it later.
 
 ## Honesty rails
 - Consent before reading; secrets scrubbed before anything leaves the machine.
-- Seeded sampling makes the tail reproducible, but the recent set is mtime-based,
-  so re-running after using the project re-selects; the LLM steps always vary.
+- Seeded sampling makes selection reproducible, but stratum membership is
+  mtime-based, so re-running after using the project re-selects; the LLM steps
+  always vary.
 - No silent truncation: surface the sampling report, `truncated` sessions, and
   failure counts.
 - Every profile claim cites a **verified** verbatim quote; unverifiable quotes are

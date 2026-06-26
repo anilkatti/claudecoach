@@ -112,3 +112,15 @@ def test_setup_section_collapsible_unused_no_more_tail():
     html = viz.render_html({}, many)
     assert "cap14" in html and "owned but unused" in html
     assert not re.search(r"\+\d+ more", html)   # no truncation tail at all
+
+
+def test_gap_rationale_renders_as_block_not_inline_after_title():
+    # Regression: the gap title (<b>) was followed by an INLINE <span> rationale,
+    # so they ran together ("...injection)The same remote-run..."). The rationale
+    # must be a block element so it drops onto its own line below the title.
+    html = viz._sg_list(
+        [{"area": "Durable runbook capture", "rationale": "re-explained each session",
+          "evidence": []}], "area", with_why=True)
+    assert "<span class=\"d\">" not in html              # not inline anymore
+    assert "</b><div class=\"d\"" in html                # title closes, block begins
+    assert "re-explained each session" in html

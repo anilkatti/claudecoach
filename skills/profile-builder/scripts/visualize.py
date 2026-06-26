@@ -115,7 +115,7 @@ def _friction_cards(user):
 def _sg_list(items, label_key, with_why=False):
     lis = []
     for it in items or []:
-        why = ('<span class="d">%s</span>' % _esc(it.get("rationale"))) if with_why else ""
+        why = ('<div class="d" style="margin-top:4px">%s</div>' % _esc(it.get("rationale"))) if with_why else ""
         lis.append('<li style="margin-bottom:12px"><b>%s</b>%s%s</li>'
                    % (_esc(it.get(label_key) or it.get("need")), why,
                       _first_evidence(it.get("evidence"))))
@@ -194,7 +194,7 @@ def render_html(project, user):
                             eyebrow="behavioral signals"),
         coach_theme.section("02", "What the work is", coach_theme.weight_bars(
             [{"label": a.get("name"), "weight": a.get("weight")} for a in project.get("task_archetypes") or []]),
-            eyebrow="task patterns, by weight"),
+            eyebrow="task patterns · share of sampled work"),
         coach_theme.section("03", "Where work snagged", _friction_cards(user), eyebrow="friction signals"),
         coach_theme.section("04", "Strengths & gaps", _strengths_gaps(user), eyebrow="a two-sided read"),
         coach_theme.section("05", "Your Claude setup", _setup(user), eyebrow="context-health signals"),

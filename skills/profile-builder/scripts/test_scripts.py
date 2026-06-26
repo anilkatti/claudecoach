@@ -38,6 +38,30 @@ def test_discover_globs_slug_dir(tmp_path):
     assert sorted(os.path.basename(f) for f in files) == ["a.jsonl", "b.jsonl"]
 
 
+def test_discover_includes_removed_worktree_dirs(tmp_path, monkeypatch):
+    # A one-worktree-per-task workflow leaves a session dir for every worktree
+    # path, but `git worktree list` reports only LIVE worktrees. discover() must
+    # still read pruned-worktree dirs, else most of the project's history (here,
+    # the work done on now-removed task branches) silently goes missing.
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    proj_root = tmp_path / "projects"
+    main_slug = sessions.encode_cwd(str(repo))
+    gone_slug = sessions.encode_cwd(str(repo / ".worktrees" / "old-task"))
+    for s in (main_slug, gone_slug):
+        (proj_root / s).mkdir(parents=True)
+        (proj_root / s / "x.jsonl").write_text("{}\n")
+    # git reports only the live main worktree; the old one was pruned
+    monkeypatch.setattr(sessions, "list_worktrees", lambda cwd: [str(repo)])
+
+    found_slug, roots, files = sessions.discover(str(repo), projects_root=str(proj_root))
+
+    seen_dirs = {os.path.basename(os.path.dirname(f)) for f in files}
+    assert found_slug == main_slug
+    assert main_slug in seen_dirs
+    assert gone_slug in seen_dirs        # removed-worktree sessions recovered
+
+
 # ============================================================ sampling =======
 
 def _mani(n, base_chars=5000):
@@ -47,14 +71,18 @@ def _mani(n, base_chars=5000):
             for i in range(n)]
 
 
-def test_sample_takes_recent_then_seeded_tail():
+def test_sample_is_time_stratified_across_history():
+    # Stratified sampling must SPAN the whole history, not front-load the newest
+    # burst: with 50 sessions and a quota of 35, the sample reaches both the
+    # newest and the oldest sessions and reports the stratified method.
     chosen, report = sessions.sample(_mani(50), recent=20, tail=15, min_chars=800, seed=0)
     assert len(chosen) == 35
-    ids = {c["session_id"] for c in chosen}
-    assert {"s%02d" % i for i in range(20)} <= ids  # 20 newest always present
-    assert report["recent_taken"] == 20
-    assert report["tail_sampled"] == 15
-    assert report["tail_skipped"] == 15
+    idx = sorted(int(c["session_id"][1:]) for c in chosen)
+    assert idx[0] == 0                              # newest stratum represented
+    assert idx[-1] >= 48                            # oldest stratum represented
+    assert report["sampled"] == 35
+    assert report["strata"] == 35
+    assert report["sampling"] == "time-stratified"
     assert report["total"] == 50
 
 
@@ -77,18 +105,20 @@ def test_sample_filters_short_sessions():
 def test_sample_fewer_than_quota_takes_all():
     chosen, report = sessions.sample(_mani(10), recent=20, tail=15, min_chars=800, seed=0)
     assert len(chosen) == 10
-    assert report["tail_sampled"] == 0
+    assert report["sampled"] == 10
+    assert report["strata"] == 10
 
 
 def test_sample_backfills_past_nonanalyzable_to_fill_quota():
-    # When the most-recent sessions are trivial, the recent quota backfills with
-    # the next analyzable ones rather than wasting slots on noise.
-    trivial = {"s00", "s01", "s02"}   # s00 is newest
+    # When an entire stratum is trivial, the quota backfills with analyzable
+    # sessions from elsewhere rather than wasting the slot on noise.
+    trivial = {"s00", "s01", "s02"}   # s00 is newest; the whole newest stratum
     chosen, report = sessions.sample(
         _mani(10), recent=3, tail=0, min_chars=800, seed=0,
         analyzable=lambda m: m["session_id"] not in trivial)
-    assert [c["session_id"] for c in chosen] == ["s03", "s04", "s05"]
-    assert report["recent_taken"] == 3
+    assert len(chosen) == 3
+    assert all(c["session_id"] not in trivial for c in chosen)
+    assert report["sampled"] == 3
     assert report["trivial_skipped"] == 3
 
 

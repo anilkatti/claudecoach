@@ -40,14 +40,28 @@ def list_worktrees(cwd):
 
 
 def discover(cwd, projects_root=None):
-    """Find session .jsonl files for the current project and its worktrees.
-    Returns (slug, roots, files)."""
+    """Find session .jsonl files for the current project and its worktrees,
+    including worktrees that have since been REMOVED. Returns (slug, roots, files).
+
+    Claude Code keeps a session dir per worktree path forever, but
+    `git worktree list` only reports *live* worktrees — so a one-worktree-per-task
+    workflow leaves most of a project's history in removed-worktree dirs that the
+    live list no longer mentions. Recover those by also matching the main
+    worktree's path prefix. (The path→dir encoding is lossy, so a prefix match can
+    in rare cases pull in a sibling repo whose path string-extends this one;
+    over-inclusion is the safe failure direction — far better than dropping ~half
+    the history.)"""
     projects_root = projects_root or _projects_root()
     roots = list_worktrees(cwd) or [os.path.abspath(cwd)]
     slug = encode_cwd(cwd)
+    dirs = {encode_cwd(r) for r in roots}            # live worktrees
+    main_prefix = encode_cwd(roots[0])               # porcelain lists main first
+    if os.path.isdir(projects_root):
+        for name in os.listdir(projects_root):       # removed worktrees by prefix
+            if name == main_prefix or name.startswith(main_prefix + "-"):
+                dirs.add(name)
     files, seen = [], set()
-    for root in roots:
-        s = encode_cwd(root)
+    for s in sorted(dirs):
         d = os.path.join(projects_root, s)
         if not os.path.isdir(d):
             continue
@@ -61,48 +75,62 @@ def discover(cwd, projects_root=None):
 # ----------------------------------------------------------------- sampling ---
 
 def sample(manifest, recent=20, tail=15, min_chars=800, seed=0, analyzable=None):
-    """Recency-stratified, seeded selection that BACKFILLS past non-analyzable
-    sessions so the quota fills with substantive ones (not trivial single-prompt
-    noise). `analyzable(item) -> bool` decides whether a candidate is worth a
-    slot; when omitted, every eligible candidate counts (the original behavior).
-    manifest items need mtime, approx_chars, path. Returns (chosen, report)."""
+    """TIME-stratified, seeded selection: partition the recency-ordered eligible
+    sessions into `k = recent + tail` equal-count strata spanning the WHOLE
+    history and draw one analyzable session per stratum, so the sample mirrors the
+    project's work distribution over time instead of front-loading the latest
+    burst (which over-represents whatever you happen to be doing right now). Within
+    a stratum it BACKFILLS past non-analyzable (trivial single-prompt) sessions,
+    then fills any shortfall from leftovers, so the quota still lands on
+    substantive sessions. `analyzable(item) -> bool` decides whether a candidate is
+    worth a slot; when omitted, every eligible candidate counts. manifest items
+    need mtime, approx_chars, path. (`recent`/`tail` are kept for CLI compatibility
+    and simply sum to the target sample size `k`.) Returns (chosen, report)."""
     ok = analyzable or (lambda m: True)
+    k = max(1, recent + tail)
     eligible = [m for m in manifest if m["approx_chars"] >= min_chars]
     # mtime desc, path asc -> deterministic ordering for seeded selection
     by_recent = sorted(eligible, key=lambda m: (-m["mtime"], m["path"]))
+    n = len(by_recent)
+    rnd = random.Random(seed)
+    chosen, used, trivial = [], set(), 0
 
-    trivial = 0
-    recent_set, i = [], 0
-    while i < len(by_recent) and len(recent_set) < recent:
-        m = by_recent[i]; i += 1
-        if ok(m):
-            recent_set.append(m)
-        else:
-            trivial += 1
+    nstrata = min(k, n)
+    for j in range(nstrata):                         # stratum 0 = most recent
+        lo, hi = (j * n) // nstrata, ((j + 1) * n) // nstrata
+        stratum = by_recent[lo:hi]
+        order = list(range(len(stratum)))
+        rnd.shuffle(order)                           # seeded pick within stratum
+        for ix in order:
+            m = stratum[ix]
+            if m["path"] in used:
+                continue
+            if ok(m):
+                used.add(m["path"]); chosen.append(m); break
+            used.add(m["path"]); trivial += 1        # reject trivial, keep looking
 
-    tail_pool = by_recent[i:]
-    order = list(range(len(tail_pool)))
-    random.Random(seed).shuffle(order)          # seeded => reproducible tail
-    tail_set, trivial_tail = [], 0
-    for idx in order:
-        if len(tail_set) >= tail:
-            break
-        m = tail_pool[idx]
-        if ok(m):
-            tail_set.append(m)
-        else:
-            trivial_tail += 1
-    trivial += trivial_tail
+    if len(chosen) < nstrata:                        # backfill all-trivial strata
+        rest = [m for m in by_recent if m["path"] not in used]
+        order = list(range(len(rest)))
+        rnd.shuffle(order)
+        for ix in order:
+            if len(chosen) >= k:
+                break
+            m = rest[ix]
+            if ok(m):
+                used.add(m["path"]); chosen.append(m)
+            else:
+                used.add(m["path"]); trivial += 1
 
-    chosen = recent_set + tail_set
+    chosen.sort(key=lambda m: (-m["mtime"], m["path"]))   # newest-first for display
     report = {
         "total": len(manifest),
         "eligible": len(eligible),
         "skipped_short": len(manifest) - len(eligible),
-        "recent_taken": len(recent_set),
-        "tail_sampled": len(tail_set),
-        "tail_skipped": max(0, len(tail_pool) - len(tail_set) - trivial_tail),
+        "sampled": len(chosen),
+        "strata": nstrata,
         "trivial_skipped": trivial,
+        "sampling": "time-stratified",
         "seed": seed,
     }
     return chosen, report
