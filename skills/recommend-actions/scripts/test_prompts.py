@@ -71,6 +71,14 @@ def test_config_doctor_skill_hygiene_levers():
     assert "sampled sessions" in low
 
 
+def test_config_doctor_respects_global_personal_scope():
+    low = _read("config_doctor").lower()
+    # personal-scope capabilities are global; don't archive the personal copy of a cross-scope dup
+    assert "deliberately global" in low
+    assert "keep them in sync" in low
+    assert "within the same scope" in low      # archive reserved for same-scope dups / dead weight
+
+
 def test_synthesizer_balances_families_in_priority():
     text = _read("action_synthesizer")
     assert "crowd out" in text.lower()
