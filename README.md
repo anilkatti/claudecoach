@@ -99,6 +99,8 @@ Then, in any project, run them in order: **profile-builder → recommend-actions
   the spec/plan is written before each skill is built.
 - **`hackathon/`** — throwaway prototypes and prior art (a session-scoring coach, a
   Tauri menubar experiment). Not a dependency.
+- **`scripts/`** — repo tooling: the tracked `pre-push` version-bump guard and its
+  one-time installer (see Releasing).
 
 ## Design principles
 
@@ -122,4 +124,23 @@ Each skill ships an offline, LLM-free test suite:
 python -m pytest skills/profile-builder/scripts/
 python -m pytest skills/recommend-actions/scripts/
 python -m pytest skills/perform-actions/scripts/
+```
+
+## Releasing
+
+`claude plugin update` compares the published `version` in
+`.claude-plugin/plugin.json` — so a push that ships plugin changes without
+bumping it leaves installed users on stale code with no update offered.
+
+A tracked `pre-push` hook guards against that: on a push to `main`, if the
+outgoing commits change plugin payload (`.claude-plugin/`, `skills/`, `commands/`,
+`agents/`, `hooks/`) but leave `version` untouched, it bumps the patch, commits
+just `plugin.json`, and stops the push — so you run `git push` once more and the
+bump ships with your changes. (Bump the minor/major by hand in the same commit
+when you want one; the guard then steps aside.)
+
+Hooks aren't shared by git, so **enable it once per clone you push from**:
+
+```sh
+sh scripts/install-hooks.sh   # sets core.hooksPath for this clone
 ```

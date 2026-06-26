@@ -1,0 +1,9 @@
+#!/bin/sh
+# Tracked pre-push hook: bump the plugin version when payload changes ship
+# without one. All logic lives in scripts/bump_plugin_version.py (testable);
+# this wrapper just locates it and forwards git's ref lines (stdin) + args.
+#
+# Activate per clone with scripts/install-hooks.sh (sets core.hooksPath).
+set -eu
+hook_dir=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
+exec python3 "$hook_dir/../bump_plugin_version.py" "$@"
