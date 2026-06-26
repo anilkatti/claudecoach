@@ -20,6 +20,7 @@ import functools
 import json
 import os
 import sys
+import threading
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 
 DEFAULT_PORT = 4577           # distinct from plan_server's 4477 so both can run at once
@@ -27,6 +28,7 @@ PORT_ATTEMPTS = 10
 MAX_BYTES = 1 * 1024 * 1024
 SELECT_PATH = "/__actions__/select"
 HEALTH_PATH = "/__actions__/health"
+_WRITE_LOCK = threading.Lock()
 
 
 def set_selected(doc, action_id, selected):
@@ -80,16 +82,17 @@ class ActionsHandler(SimpleHTTPRequestHandler):
         if not os.path.isfile(target):
             self.send_error(404, "No actions.json in served root")
             return
-        with open(target) as f:
-            doc = json.load(f)
-        if not set_selected(doc, action_id, selected):
-            self.send_error(404, "Unknown action id")
-            return
-        # Single-user local UI flow: one writer at a time, so a fixed .tmp name is safe.
-        tmp = target + ".tmp"
-        with open(tmp, "w") as f:
-            json.dump(doc, f, indent=2)
-        os.replace(tmp, target)  # atomic: never leaves a half-written actions.json
+        with _WRITE_LOCK:
+            with open(target) as f:
+                doc = json.load(f)
+            if not set_selected(doc, action_id, selected):
+                self.send_error(404, "Unknown action id")
+                return
+            # Single-user local UI flow: one writer at a time, so a fixed .tmp name is safe.
+            tmp = target + ".tmp"
+            with open(tmp, "w") as f:
+                json.dump(doc, f, indent=2)
+            os.replace(tmp, target)  # atomic: never leaves a half-written actions.json
         payload = json.dumps(
             {"id": action_id, "status": "selected" if selected else "pending"}
         ).encode()

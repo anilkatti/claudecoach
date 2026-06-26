@@ -112,6 +112,18 @@ def test_oversized_body_rejected(server):
     assert doc["actions"][0]["apply"]["status"] == "pending"
 
 
+def test_malformed_body_400(server):
+    port, root = server
+    conn = http.client.HTTPConnection("127.0.0.1", port, timeout=2)
+    conn.request("POST", "/__actions__/select", body="not json{", headers=_HDR)
+    r = conn.getresponse()
+    r.read()
+    conn.close()
+    assert r.status == 400
+    doc = json.loads((root / "actions.json").read_text())
+    assert doc["actions"][0]["apply"]["status"] == "pending"  # untouched
+
+
 def test_select_missing_actions_json_404(tmp_path):
     handler = functools.partial(acts.ActionsHandler, directory=str(tmp_path))  # no actions.json written
     httpd = ThreadingHTTPServer(("127.0.0.1", 0), handler)

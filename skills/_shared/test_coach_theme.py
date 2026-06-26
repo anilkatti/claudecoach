@@ -111,6 +111,15 @@ def test_action_card_advisory_has_no_button():
     assert "guidance" in a
 
 
+def test_action_card_applied_and_skipped_are_disabled():
+    a = ct.action_card("X", "config", "low", "r", apply_kind="archive",
+                       apply_preview="/p", action_id="x", status="applied")
+    assert "disabled" in a and "Applied ✓" in a
+    b = ct.action_card("Y", "config", "low", "r", apply_kind="archive",
+                       apply_preview="/p", action_id="y", status="skipped")
+    assert "disabled" in b and "Skipped" in b
+
+
 def test_footer():
     f = ct.footer("Read by Haiku. ", "nondeterministic.")
     assert "ClaudeCoach" in f and "nondeterministic." in f

@@ -252,6 +252,7 @@ def _apply_affordance(action_id, apply_kind, apply_preview, status):
 def action_card(title, family, effort, rationale_html, *, impact_html="",
                 source_html="", evidence_html="", apply_kind="", apply_preview="",
                 action_id="", status="pending"):
+    st = status if status in _APPLY_LABEL else "pending"
     fam = (f'<span class="tag fam"><span class="fdot" style="background:var(--c-{esc(family)})">'
            f'</span>{esc(family)}</span>')
     eff = f'<span class="tag">{esc(effort)} effort</span>' if effort else ""
@@ -261,8 +262,8 @@ def action_card(title, family, effort, rationale_html, *, impact_html="",
     if source_html:
         foot_bits.append(f'<span class="src">{source_html}</span>')
     foot = f'<div class="foot">{"".join(foot_bits)}</div>' if foot_bits else ""
-    apply_html = _apply_affordance(action_id, apply_kind, apply_preview, status)
-    return (f'<div class="acard" data-action-id="{esc(action_id)}" data-status="{esc(status)}">'
+    apply_html = _apply_affordance(action_id, apply_kind, apply_preview, st)
+    return (f'<div class="acard" data-action-id="{esc(action_id)}" data-status="{esc(st)}">'
             f'<div class="acard-top"><h3>{esc(title)}</h3>'
             f'<div class="tags">{fam}{eff}</div></div>'
             f'<p class="rat">{rationale_html}</p>{foot}{evidence_html}{apply_html}</div>')

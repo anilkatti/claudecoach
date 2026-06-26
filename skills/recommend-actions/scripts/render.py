@@ -210,7 +210,7 @@ def _find_or_start_server(profile_dir):
             r = conn.getresponse()
             if r.status == 200 and os.path.realpath(json.loads(r.read()).get("root", "")) == real:
                 return port
-        except (OSError, ValueError):
+        except (OSError, ValueError, http.client.HTTPException):
             pass
         finally:
             conn.close()
