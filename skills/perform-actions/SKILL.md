@@ -27,9 +27,15 @@ for this project and **offer to run `/recommend-actions` first** — then stop. 
 the `doc` (the actions.json itself) from `path`.
 
 ## Step 2 — Walk + route (per-action consent)
-Walk `doc.actions` in `do_now` → `consider` → `fyi` order. For each action, show its
-`title`, `rationale`, and `apply.preview`, then ask whether to apply it. Only on an
-explicit **yes**, route by `apply.kind`:
+First filter to the actions the user **selected** in `actions.html`:
+`selected = [a for a in doc.actions if a.get("apply", {}).get("status") == "selected"]`.
+- If `selected` is **empty** (they opened the report and picked nothing, or it predates
+  the Apply UI), say no actions are marked *Selected for application*, and offer to either
+  reopen `actions.html` to choose, or walk **all** `doc.actions` this once.
+- Otherwise walk `selected` in `do_now` → `consider` → `fyi` order.
+For each walked action, show its `title`, `rationale`, and `apply.preview`, then ask
+whether to apply it (selection pre-filters the queue; this per-action yes/no is still
+required). Only on an explicit **yes**, route by `apply.kind`:
 - `run_command` → dispatch `prompts/installer.md` (`{{ACTION_JSON}}` = the action).
 - `archive` → dispatch `prompts/archiver.md`.
 - `scaffold_skill` → dispatch `prompts/scaffolder.md`.

@@ -51,6 +51,21 @@ def test_cli_emits_json(tmp_path):
         capture_output=True, text=True, check=True).stdout
     doc = json.loads(out)
     assert doc["n_actions"] == 1 and doc["path"].endswith("actions.json")
+    assert doc["n_selected"] == 0          # DOC's only action is status "pending"
+
+
+def test_cli_counts_selected(tmp_path):
+    cwd = "/Volumes/sel"
+    d = tmp_path / "profiles" / la.encode_cwd(cwd)
+    d.mkdir(parents=True)
+    (d / "actions.json").write_text(json.dumps({"actions": [
+        {"id": "s1", "apply": {"kind": "archive", "status": "selected"}},
+        {"id": "p1", "apply": {"kind": "edit_file", "status": "pending"}}]}))
+    out = subprocess.run(
+        [sys.executable, os.path.join(os.path.dirname(__file__), "load_actions.py"),
+         cwd, "--profiles-root", str(tmp_path / "profiles")],
+        capture_output=True, text=True, check=True).stdout
+    assert json.loads(out)["n_selected"] == 1
 
 
 def test_cli_missing_emits_error(tmp_path):

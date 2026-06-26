@@ -42,8 +42,11 @@ def main():
     if res.get("error"):
         print(json.dumps({"error": res["error"], "dir": res["dir"], "path": res["path"]}))
         return
+    actions = res["doc"].get("actions", [])
+    n_selected = sum(1 for a in actions
+                     if a.get("apply", {}).get("status") == "selected")
     print(json.dumps({"slug": res["slug"], "dir": res["dir"], "path": res["path"],
-                      "n_actions": len(res["doc"].get("actions", []))}))
+                      "n_actions": len(actions), "n_selected": n_selected}))
 
 
 if __name__ == "__main__":
