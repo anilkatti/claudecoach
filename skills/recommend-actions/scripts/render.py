@@ -210,16 +210,17 @@ def _find_or_start_server(profile_dir):
             r = conn.getresponse()
             if r.status == 200 and os.path.realpath(json.loads(r.read()).get("root", "")) == real:
                 return port
-        except OSError:
+        except (OSError, ValueError):
             pass
         finally:
             conn.close()
     server_py = os.path.join(os.path.dirname(os.path.abspath(__file__)), "actions_server.py")
     proc = subprocess.Popen([sys.executable, server_py, "--root", real],
-                            stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
+                            stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, text=True)
     for line in proc.stdout:                       # read the startup line for the actual port
         m = re.search(r"http://127\.0\.0\.1:(\d+)/", line)
         if m:
+            proc.stdout.close()
             return int(m.group(1))
     return None
 
