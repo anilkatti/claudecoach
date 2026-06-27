@@ -146,5 +146,9 @@ def test_config_doctor_profile_management_lens():
 
 def test_synthesizer_balances_families_in_priority():
     text = _read("action_synthesizer")
-    assert "crowd out" in text.lower()
-    assert "acquire" in text.lower()
+    low = text.lower()
+    assert "crowd out" in low
+    assert "acquire" in low
+    # high always-on bloat trims and strong adoption finds are do_now/consider eligible
+    assert "bloat" in low
+    assert "adoption" in low
