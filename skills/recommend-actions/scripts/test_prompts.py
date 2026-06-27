@@ -76,13 +76,25 @@ def test_capability_scout_surfaces_wellknown_options():
     assert "never" in text.lower() and "invent" in text.lower()
 
 
-def test_capability_scout_is_cli_first():
-    low = _read("capability_scout").lower()
-    assert "cli" in low
-    assert "earn its place" in low and "genuinely can't" in low
-    assert "token cost" in low
-    # the old blanket "prefer MCP" line is removed
-    assert "prefer mcp for a live-data/tool gap, a skill for a procedure" not in low
+def test_capability_scout_cli_first_recalibrated():
+    text = _read("capability_scout")
+    low = text.lower()
+    assert "cli" in low and "genuinely can't" in low          # CLI-first kept
+    assert "simplicity" in low                                 # justified by simplicity, not token cost
+    assert "deferred by default" in low or "minimal impact" in low   # MCP is deferred-cheap
+    # the obsolete token-cost rationale for refusing an MCP is gone
+    assert "always-on tool-schema token cost" not in low
+    # don't suppress structurally-leverageful MCP
+    assert "structured/programmatic access" in low
+
+
+def test_capability_scout_surveys_adoption_sources():
+    text = _read("capability_scout")
+    low = text.lower()
+    assert "reference/sources.md" in text                      # cites the methodology reference
+    assert "adoption signal" in low                            # must cite a real signal
+    assert "pulsemcp" in low or "glama" in low                 # a real-usage proxy named
+    assert "visibility, not adoption" in low                   # triangulation caveat
 
 
 def test_config_doctor_has_skill_reorg_lens():
