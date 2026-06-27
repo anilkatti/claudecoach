@@ -9,6 +9,33 @@ def _read(name):
         return f.read()
 
 
+REFERENCE = os.path.join(os.path.dirname(__file__), "..", "reference")
+
+
+def _read_ref(name):
+    with open(os.path.join(REFERENCE, name)) as f:
+        return f.read()
+
+
+def test_sources_reference_lists_sources_and_levers():
+    text = _read_ref("sources.md")
+    low = text.lower()
+    # adoption sources (incl. the two real-usage proxies) + the registry
+    assert "registry.modelcontextprotocol.io" in text
+    assert "pulsemcp" in low and "glama" in low
+    assert "anthropics/claude-plugins-official" in text
+    # the verified hygiene levers, by exact key
+    assert "disable-model-invocation" in text
+    assert "skillOverrides" in text and "settings.local.json" in text
+    assert "paths:" in text
+    # verified guidance + the standing caveats
+    assert "200 lines" in low                       # CLAUDE.md size discipline
+    assert "deferred by default" in low             # MCP is not a context hog
+    assert "visibility, not adoption" in low        # triangulation caveat
+    assert "re-verify" in low                       # keys drift
+    assert "plugin skills are exempt" in low        # skillOverrides exemption
+
+
 def test_specialist_prompts_have_lane_placeholder_and_json_output():
     for name in SPECIALISTS:
         text = _read(name)
