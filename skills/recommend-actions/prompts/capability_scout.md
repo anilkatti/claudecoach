@@ -26,23 +26,32 @@ recommend only what is relevant to *this* user, not to survey everything that ex
     an unverified URL.
   - If **network is NOT enabled**, emit an empty array `[]` and nothing else —
     acquiring new capabilities needs a live lookup, and you must not guess one.
-- **A CLI you already use is the default — make an MCP earn its place.** Before proposing
-  an MCP, check `tools_and_materials` and `owned_capabilities` for an existing CLI that
-  already covers the gap (e.g. `gh`, `docker`, `aws`). If one exists, recommend an MCP
-  **only** when it gives something the CLI genuinely can't — structured/programmatic access
-  the model can't reliably parse from CLI text, or a materially tighter loop — and say so
-  explicitly, weighing the MCP's always-on tool-schema **token cost**. Otherwise prefer the
-  CLI (no install) or a thin skill that drives it. Map the gap to the right form: a skill
-  for a procedure, a plugin for a bundle, an MCP for a live-data/tool gap a CLI can't fill.
+- **A CLI you already fluently drive is the default — but judge it on the right basis.**
+  Before proposing an MCP, check `tools_and_materials` and `owned_capabilities` for an existing
+  CLI that already covers the gap (e.g. `gh`, `docker`, `aws`). Prefer that CLI when it does —
+  for **simplicity** (a tool the user already drives, no extra server to run, no new security
+  surface), **not** for token cost: per `reference/sources.md`, MCP tool schemas are *deferred
+  by default* and have minimal impact on the context window, so MCP footprint is **not** a
+  reason to refuse one. Recommend an MCP when it gives something the CLI genuinely can't —
+  **structured/programmatic access** the model can't reliably parse from CLI text (e.g.
+  Postgres-style schema introspection / EXPLAIN / index tuning), or a materially tighter loop.
+  Do **not** suppress a structurally-leverageful MCP just because a related CLI exists. Map the
+  gap to the right form: a skill for a procedure, a plugin for a bundle, an MCP for a
+  live-data/tool gap a CLI can't fill.
 
-## Surface strong, well-known options — not only literal gap-fillers
-Within the profile's scope, you may also recommend a **widely-used, well-known,
-well-maintained** capability the person lacks even when no gap is spelled out — e.g.
-an established skill / MCP / plugin for a high-weight `domain` or `task_archetype`
-they work in repeatedly. The rails are unchanged: it must be **scoped to this
-profile**, the person must **not already own it** (dedupe against `owned_capabilities`),
-and you must **fetch and verify its URL** before emitting it — never an invented name
-or an unverified URL. Prefer established, maintained options over obscure ones.
+## Surface what strong users in your domains run — not only literal gap-fillers
+Within the profile's scope, also recommend **widely-adopted, well-known, well-maintained**
+capabilities the person lacks even when no gap is spelled out — the "what do strong Claude
+users in your domains actually run" angle. Survey the adoption sources in `reference/sources.md`
+(the MCP registry; PulseMCP and Glama for *real usage*; the Anthropic plugin marketplace;
+GitHub stars **with** `pushed_at`; the awesome-lists), scoped to a high-weight `domain` /
+`task_archetype`. Each such candidate must **cite a real adoption signal** in its rationale —
+a Glama grade, a PulseMCP usage figure, or stars with recent `pushed_at` — not bare existence;
+a star count is **visibility, not adoption**, so triangulate. The rails are unchanged: scoped
+to this profile, not already owned (dedupe against `owned_capabilities`), and **fetch and
+verify its URL** before emitting it — never an invented name or an unverified URL. Flag any
+security caveat (an unaudited community server, a known advisory) in the rationale rather than
+burying it.
 
 ## Evidence rule
 Every candidate's `evidence[]` must cite a profile signal path and a verbatim quote
