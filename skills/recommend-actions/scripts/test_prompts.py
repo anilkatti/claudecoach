@@ -127,6 +127,23 @@ def test_config_doctor_respects_global_personal_scope():
     assert "within the same scope" in low      # archive reserved for same-scope dups / dead weight
 
 
+def test_config_doctor_profile_management_lens():
+    text = _read("config_doctor")
+    low = text.lower()
+    assert "skill_usage" in text                        # ranks the prunable subset by usage
+    assert "reference/sources.md" in text               # levers come from the reference
+    # team vs personal: repo not the user's to delete; suppress-for-self lever + location
+    assert "team-shared" in low
+    assert "settings.local.json" in low
+    # always-on bloat targeting + verified size guidance
+    assert "always_on.sources" in text
+    assert "200 lines" in low
+    # MCP de-emphasized (deferred-cheap)
+    assert "minimal context impact" in low or "deferred by default" in low
+    # honesty rail preserved
+    assert "sampled sessions" in low
+
+
 def test_synthesizer_balances_families_in_priority():
     text = _read("action_synthesizer")
     assert "crowd out" in text.lower()
