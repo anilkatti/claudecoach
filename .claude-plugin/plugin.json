@@ -1,7 +1,7 @@
 {
   "name": "claudecoach",
   "displayName": "ClaudeCoach",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Coaches you on how you use Claude Code. Profiles you and your project from your own session history, recommends skills / MCP / config / habit changes, and applies the ones you approve — locally, privately, and reversibly. Bundles three skills: profile-builder (sense), recommend-actions (recommend), perform-actions (do).",
   "author": {
     "name": "Anil Katti",
