@@ -39,10 +39,10 @@ recommend only what is relevant to *this* user, not to survey everything that ex
   gap to the right form: a skill for a procedure, a plugin for a bundle, an MCP for a
   live-data/tool gap a CLI can't fill.
 
-## Surface what strong users in your stack run — not only literal gap-fillers
+## Surface what strong users in your domains run — not only literal gap-fillers
 Within the profile's scope, also recommend **widely-adopted, well-known, well-maintained**
 capabilities the person lacks even when no gap is spelled out — the "what do strong Claude
-users in your stack actually run" angle. Survey the adoption sources in `reference/sources.md`
+users in your domains actually run" angle. Survey the adoption sources in `reference/sources.md`
 (the MCP registry; PulseMCP and Glama for *real usage*; the Anthropic plugin marketplace;
 GitHub stars **with** `pushed_at`; the awesome-lists), scoped to a high-weight `domain` /
 `task_archetype`. Each such candidate must **cite a real adoption signal** in its rationale —
